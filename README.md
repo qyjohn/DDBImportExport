@@ -30,6 +30,8 @@ DDBImport accepts regular JSON data format. For example:
 {"hash": "CDE", "range": "345", "val_1": "ABCD", "val_2": 1234}]
 ~~~~
 
+The JSON data must include the primary key of your DynamoDB table. In the above-mentioned example, attribute "hash" is the hash key and attribute "range" is the range key.
+
 We also provide a data generation utility GenerateTestData.py for testing purposes. 
 
 Usage:
