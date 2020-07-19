@@ -42,18 +42,6 @@ Example:
 
 ~~~~
 python GenerateTestData.py -c 1000000 -f test.json
-~~~~
-
-Run this with the following command format:
-
-~~~~
-python DDBImport.py DynamoDB_Table_Name data.json region n_threads
-~~~~
-
-For example:
-
-~~~~
-python DDBImport.py DynamoDB_Table_Name data.json us-east-1 2
 python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 ~~~~
 

@@ -19,7 +19,8 @@ approximately 1000 WCU during the import.
 Tested on an EC2 instance with the c3.8xlarge instance type. The data set contains 
 10,000,000 items, with each item being approximately 170 bytes. The size of the JSON 
 file is 1.7 GB. The DynamoDB table has 40,000 provisioned WCU. Perform the import 
-with 64 threads, and the import is completed in ABC minutes.
+with 64 threads, and the import is completed in 7 minutes. The peak consumed WCU is 
+approximately 32,000 (average value over a 1-minute period).
 """
 
 #!/usr/bin/python
