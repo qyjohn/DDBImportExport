@@ -105,9 +105,8 @@ else:
   queue. Each worker process will poll the queue to do the work.
   """
   with open(source) as f:
-    data = json.load(f)
-  for item in data:
-    queue.put(item)
+    for line in f:
+      queue.put(json.loads(line))
   """
   Wait for worker processes to exit, then the main thread exits.
   """

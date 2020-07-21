@@ -24,12 +24,12 @@ It is recommended that you use either a fixed provisioned WCU or an on-demand ta
 
 ## Data Format
 
-DDBImport accepts regular JSON data format. For example:
+DDBImport accepts regular JSON data format, one item per line. For example:
 
 ~~~~
-[{"hash": "ABC", "range": "123", "val_1": "ABCD"},
-{"hash": "BCD", "range": "234", "val_2": 1234},
-{"hash": "CDE", "range": "345", "val_1": "ABCD", "val_2": 1234}]
+{"hash": "ABC", "range": "123", "val_1": "ABCD"}
+{"hash": "BCD", "range": "234", "val_2": 1234}
+{"hash": "CDE", "range": "345", "val_1": "ABCD", "val_2": 1234}
 ~~~~
 
 The JSON data must include the primary key of your DynamoDB table. In the above-mentioned example, attribute "hash" is the hash key and attribute "range" is the range key.

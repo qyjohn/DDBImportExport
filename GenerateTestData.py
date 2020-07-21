@@ -37,21 +37,12 @@ if all([total, file]) == False:
   print('GenerateTestData.py -c <item_count> -f <output_file>')
 else:
   out=open(file, 'w')
-  out.write('[')
   """
-  Write n-1 items first, with "," at the end of each line.
+  Write n items, one item per line.
   """
-  for i in range(total-1):
+  for i in range(total):
     hash  = str(uuid.uuid4())
     range = str(uuid.uuid4())
     val_1 = random.randrange(2147483647)
     val_2 = str(uuid.uuid4())
-    out.write('{"hash": "%s", "range": "%s", "val_1": %d, "val_2": "%s"},\n' % (hash, range, val_1, val_2))
-  """
-  Write the last item.
-  """
-  hash  = str(uuid.uuid4())
-  range = str(uuid.uuid4())
-  val_1 = random.randrange(2147483647)
-  val_2 = str(uuid.uuid4())
-  out.write('{"hash": "%s", "range": "%s", "val_1": %d, "val_2": "%s"}]' % (hash, range, val_1, val_2))
+    out.write('{"hash": "%s", "range": "%s", "val_1": %d, "val_2": "%s"}\n' % (hash, range, val_1, val_2))
