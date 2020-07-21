@@ -1,6 +1,8 @@
-## Introduction
+This project provides an easy way to import data from JSON files into DynamoDB table, or export data from DynamoDB table into JSON files. It also provides a data generation utility for quick testing.
 
-DDBImport is a python script to load data from JSON file into DynamoDB table. 
+## DDBImport
+
+DDBImport is a python script to import from JSON file into DynamoDB table. 
 
 Usage:
 
@@ -22,9 +24,27 @@ Tested on an EC2 instance with the c3.8xlarge instance type. The data set contai
 
 It is recommended that you use either a fixed provisioned WCU or an on-demand table for the import. The import creates a short burst traffic, which is not friendly for the DynamoDB auto scaling feature. If you use provisioned capacity, remember that each process requires approximately 1000 WCU. If you use 8 processes to do the import, you need 8000 provisioned WCU on the table.
 
+## DDBExport
+
+DDBExport is a python script to export data from DynamoDB table into JSON file.
+
+Usage:
+
+~~~~
+python DDBExport.py -r <region_name> -t <table_name> -p <process_count>
+~~~~
+
+Example:
+
+~~~~
+python DDBExport.py -r us-east-1 -t TestTable -p 8
+~~~~
+
+It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. Depending on the number of processes you use, DDBExport will create multiple JSON files as the output. The name of the JSON files will be Table-xxx.json. 
+
 ## Data Format
 
-DDBImport accepts regular JSON data format, one item per line. For example:
+DDBImport/DDBExport uses regular JSON data format, one item per line, as shown in the example below. This allows the data to be used directly in other use cases, for example, AWS Glue and AWS Athena. 
 
 ~~~~
 {"hash": "ABC", "range": "123", "val_1": "ABCD"}
