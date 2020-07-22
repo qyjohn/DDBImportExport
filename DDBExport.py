@@ -79,8 +79,7 @@ if all([region, table, process_count]) == False:
   print('DDBExport.py -r <region_name> -t <table_name> -p <process_count>')
 else:
   """
-  Launch worker processes to do the work. The worker processes receives data from a
-  queue.
+  Launch worker processes to do the work. 
   """
   workers = []
   for i in range(process_count):
