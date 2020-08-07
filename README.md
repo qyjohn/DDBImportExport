@@ -31,6 +31,11 @@ DDBExport is a python script to export data from DynamoDB table into JSON file. 
 | parameter  |  description |
 |---|---|
 | -r | The name of the AWS region, such as us-east-1. |
+| -t | The name of the DynamoDB table. |
+| -p | The number of sub-processes (threads) to use. |
+| -c | The maximum amount of read capacity units (RCU) to use. |
+| -s | The maximum size of each individual output file. |
+| -d | The output destination. Supports both local folder and S3. |
 
 Usage:
 
