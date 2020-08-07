@@ -136,18 +136,30 @@ When exporting a DynamoDB table at TB scale, you might want to run DDBExport on 
 On i3.8xlarge:
 
 ~~~~
-# Create a RAID0 device
-# Create EXT4 file system without lazy initialization
+# Create a RAID0 device and create EXT4 file system without lazy initialization
+sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=4 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1
+sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/md0
+# Mount the RAID0 device and change the ownership to ec2-user
+sudo mkdir /data
+sudo mount /dev/md0 /data
+sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
+cd /data
 time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 2048 -d s3://bucket/prefix/
 ~~~~
 
 On i3.16xlarge:
 
 ~~~~
-# Create a RAID0 device
-# Create EXT4 file system without lazy initialization
+# Create a RAID0 device and create EXT4 file system without lazy initialization
+sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=8 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1 /dev/nvme5n1 /dev/nvme6n1 /dev/nvme7n1
+sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/md0
+# Mount the RAID0 device and change the ownership to ec2-user
+sudo mkdir /data
+sudo mount /dev/md0 /data
+sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
+cd /data
 time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 2048 -d s3://bucket/prefix/
 ~~~~
 
