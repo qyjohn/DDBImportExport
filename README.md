@@ -41,7 +41,7 @@ DDBExport is a python script to export data from DynamoDB table into JSON file. 
 | -t | The name of the DynamoDB table. |
 | -p | The number of sub-processes (threads) to use. |
 | -c | The maximum amount of read capacity units (RCU) to use. |
-| -s | The maximum size of each individual output file. |
+| -s | The maximum size of each individual output file, in MB. |
 | -d | The output destination. Supports both local folder and S3. |
 
 Usage:
@@ -58,6 +58,8 @@ python DDBExport.py -r us-west-2 -t TestTable2 -p 8 -c 2000 -s 2048 -d s3://buck
 ~~~~
 
 It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. Depending on the number of processes you use, DDBExport will create multiple JSON files as the output. The name of the JSON files will be Table-xxx.json. 
+
+It is important that you have sufficient free space in the output destination. When using S3 as the output destination, your current folder needs to have sufficient free space to hold the intermediate data, which is the number of sub-processes times the size of each individual output file. For example, if the number of sub-processes is 8, and the size of each individual output file is 1024 MB, then you will need 8 x 1024 MB = 8 GB free space in the current directory. 
 
 ## Data Format
 
