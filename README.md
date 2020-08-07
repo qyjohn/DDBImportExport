@@ -117,6 +117,16 @@ python GenerateTestData.py -c 1000000 -f test.json
 python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 ~~~~
 
+## Performance Considerations
+
+When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with instance-store volumes. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.78 TB data. There are XXX items in the table, with each item being 399.2 KB. 
+
+| instance type  | vCPU | Memory | Network |
+|---|---|---|---|
+| i3.8xlarge | 32 | 244 GB | 10 Gbps |
+| i3.16xlarge | 64 | 488 GB | 25 Gbps |
+
+
 ## Others
 
 You should also be aware of the following dynamodump project:
