@@ -119,13 +119,24 @@ python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 
 ## Performance Considerations
 
-When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with instance-store volumes. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.78 TB data. There are XXX items in the table, with each item being 399.2 KB. 
+When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with instance-store volumes. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.78 TB data. There are XXX items in the table, with each item being 399.2 KB. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
 
-| Instance Type  | vCPU | Memory | Network | Processes | Time |
-|---|---|---|---|---|---|
-| i3.8xlarge | 32 | 244 GB | 10 Gbps | 32 | aaa |
-| i3.16xlarge | 64 | 488 GB | 25 Gbps | 64 | xxx |
+| Instance Type  | vCPU | Memory | Network | Processes | RCU | Time |
+|---|---|---|---|---|---|---|
+| i3.8xlarge | 32 | 244 GB | 10 Gbps | 32 | 11200 | aaa |
+| i3.16xlarge | 64 | 488 GB | 25 Gbps | 64 | 19200 | xxx |
 
+On i3.8xlarge:
+
+~~~~
+$ time python DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 2048 -d s3://bucket/prefix/
+~~~~
+
+On i3.16xlarge:
+
+~~~~
+$ time python DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 2048 -d s3://bucket/prefix/
+~~~~
 
 ## Others
 
