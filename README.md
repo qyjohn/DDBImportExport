@@ -28,9 +28,7 @@ It is recommended that you use either a fixed provisioned WCU or an on-demand ta
 
 DDBExport is a python script to export data from DynamoDB table into JSON file. The following parameters are required:
 
-|-|-|
 |-r| The name of the AWS region, such as us-east-1.|
-|-|-|
 
 Usage:
 
