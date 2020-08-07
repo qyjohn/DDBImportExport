@@ -26,18 +26,23 @@ It is recommended that you use either a fixed provisioned WCU or an on-demand ta
 
 ## DDBExport
 
-DDBExport is a python script to export data from DynamoDB table into JSON file.
+DDBExport is a python script to export data from DynamoDB table into JSON file. The following parameters are required:
+
+|-|-|
+|-r| The name of the AWS region, such as us-east-1.|
+|-|-|
 
 Usage:
 
 ~~~~
-python DDBExport.py -r <region_name> -t <table_name> -p <process_count>
+python DDBExport.py -r <region> -t <table> -p <processes> -c <capacity> -s <size> -d <destination>
 ~~~~
 
 Example:
 
 ~~~~
-python DDBExport.py -r us-east-1 -t TestTable -p 8
+python DDBExport.py -r us-east-1 -t TestTable1 -p 8 -c 1000 -s 1024 -d /data
+python DDBExport.py -r us-west-2 -t TestTable2 -p 8 -c 2000 -s 2048 -d s3://bucket/prefix/
 ~~~~
 
 It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. Depending on the number of processes you use, DDBExport will create multiple JSON files as the output. The name of the JSON files will be Table-xxx.json. 
