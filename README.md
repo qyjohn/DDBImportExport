@@ -1,5 +1,32 @@
 This project provides an easy way to import data from JSON files into DynamoDB table, or export data from DynamoDB table into JSON files. It also provides a data generation utility for quick testing.
 
+## Installation
+
+On a newly launched EC2 instance with Amazon Linux 2, install DDBImportExport with the following commands:
+
+~~~~
+sudo yum install git python3 -y
+python3 -m venv boto3
+source boto3/bin/activate
+pip install pip --upgrade
+pip install boto3
+git clone https://github.com/qyjohn/DDBImportExport
+cd DDBImportExport
+~~~~
+
+On a newly launched EC2 instance with Ubuntu 18.04, install DDBImportExport with the following commands:
+
+~~~~
+sudo apt update
+sudo apt install python3 python3-venv git -y
+python3 -m venv boto3
+source boto3/bin/activate
+pip install pip --upgrade
+pip install boto3
+git clone https://github.com/qyjohn/DDBImportExport
+cd DDBImportExport
+~~~~
+
 ## DDBImport
 
 DDBImport is a python script to import from JSON file into DynamoDB table. The following parameters are required:
@@ -57,7 +84,9 @@ python DDBExport.py -r us-east-1 -t TestTable1 -p 8 -c 1000 -s 1024 -d /data
 python DDBExport.py -r us-west-2 -t TestTable2 -p 8 -c 2000 -s 2048 -d s3://bucket/prefix/
 ~~~~
 
-It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. Depending on the number of processes you use, DDBExport will create multiple JSON files as the output. The name of the JSON files will be Table-xxx.json. 
+It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. However, it is important that you have sufficient provisioined RCU on the table, and specify sufficient max capacity for the export with the -c option. In general, a single process can achieve over 3200 RCU, which is approximately 25 MB/s. With 4 processes, you can achieve approximately 13000 RCU or 100 MB/s.
+
+Depending on the number of sub-processes you use and the maximum size of the output file, DDBExport will create multiple JSON files in the output destination. The name of the JSON files will be TableName-WorkerID-FileNumber.json. 
 
 It is important that you have sufficient free space in the output destination. When using S3 as the output destination, your current folder needs to have sufficient free space to hold the intermediate data, which is the number of sub-processes times the size of each individual output file. For example, if the number of sub-processes is 8, and the size of each individual output file is 1024 MB, then you will need 8 x 1024 MB = 8 GB free space in the current directory. 
 
