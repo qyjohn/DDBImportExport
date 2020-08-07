@@ -2,7 +2,14 @@ This project provides an easy way to import data from JSON files into DynamoDB t
 
 ## DDBImport
 
-DDBImport is a python script to import from JSON file into DynamoDB table. 
+DDBImport is a python script to import from JSON file into DynamoDB table. The following parameters are required:
+
+| parameter  |  description |
+|---|---|
+| -r | The name of the AWS region, such as us-east-1. |
+| -t | The name of the DynamoDB table. |
+| -s | The name of the source file. |
+| -p | The number of sub-processes (threads) to use. |
 
 Usage:
 
