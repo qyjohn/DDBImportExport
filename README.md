@@ -128,11 +128,6 @@ python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 
 When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.78 TB data. There are XXX items in the table, with each item being 399.2 KB. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
 
-| Instance | vCPU | Memory | SSD Disks | Network | Processes | RCU | Time |
-|---|---|---|---|---|---|---|---|
-| i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | 11200 | aaa |
-| i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 | 19200 | xxx |
-
 On i3.8xlarge:
 
 ~~~~
@@ -145,7 +140,7 @@ sudo mount /dev/md0 /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 2048 -d s3://bucket/prefix/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 1024 -d s3://bucket/prefix/
 ~~~~
 
 On i3.16xlarge:
@@ -160,8 +155,22 @@ sudo mount /dev/md0 /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 2048 -d s3://bucket/prefix/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 1024 -d s3://bucket/prefix/
 ~~~~
+
+The following table shows the time needed to perform the export with DDBExport.
+
+| RCU | Instance | vCPU | Memory | SSD Disks | Network | Processes | Time |
+|---|---|---|---|---|---|---|---|
+| 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | aaa |
+| 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 |  xxx |
+
+As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. The following table shows the time needed to perform the export with Data Pipeline.
+
+| RCU | Instance | vCPU | Memory | Nodes | Containers | Time |
+|---|---|---|---|---|---|---|---|
+| 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | minutes |
+| 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
 
 ## Others
 
