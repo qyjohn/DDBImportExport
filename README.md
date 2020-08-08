@@ -176,10 +176,10 @@ Now let's do a cost comparision on the above-mentioned approaches (using on-dema
 
 | Test | Instance | EC2 Price | EMR Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|
-| DDBExport-1 | i3.8xlarge | 2.496 | N/A | 1 | - | - |
-| DDBExport-2 | i3.16xlarge | 4.992 | N/A | 1 | - | - |
-| Pipeline-1 | m3.xlarge | 0.266 | 0.0665 | 95 | - | - |
-| Pipeline-2 | m3.xlarge | 0.266 | 0.0665 | - | - | - |
+| DDBExport-1 | i3.8xlarge | $2.496 | N/A | 1 | - | - |
+| DDBExport-2 | i3.16xlarge | $4.992 | N/A | 1 | - | - |
+| Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | 95 | - | - |
+| Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | - | - | - |
 
 
 ## Others
