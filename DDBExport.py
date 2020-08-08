@@ -29,7 +29,8 @@ import os
 QoSCounter is a LeakyBucket QoS algorithm. Each sub-process can not do any Scan 
 unless the QoSCounter is greater than 0. After a sub-process performs a Scan, it
 must deduct the consumed RCU from the QoSCounter by calling the consume() method. 
-The main process needs to start a thread to refill the QoSCounter.
+The main process needs to start a separate process to call the refill() method
+at 1 Hz to refill the LeakyBucket. 
 """
 class QoSCounter(object):
     def __init__(self, value=0):
@@ -62,11 +63,14 @@ def qosRefillThread(counter):
       time.sleep(1)
 
 """
-This is a method to convert Decimal into integer.
+This is a method to convert Decimal into integer or float.
 """
 def decimal_default(obj):
     if isinstance(obj, decimal.Decimal):
+      if int(obj) == obj:
         return int(obj)
+      else:
+        return float(obj)
     raise TypeError
    
 """
