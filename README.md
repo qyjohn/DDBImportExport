@@ -165,12 +165,22 @@ The following table shows the time needed to perform the export with DDBExport.
 | 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | aaa |
 | 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 |  xxx |
 
-As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. The following table shows the time needed to perform the export with Data Pipeline.
+As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. By default, the m3.xlarge instance type is used, with up to 8 containers on each core node. The following table shows the time needed to perform the export with Data Pipeline.
 
 | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Time |
 |---|---|---|---|---|---|---|
 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | minutes |
 | 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
+
+Now let's do a cost comparision on the above-mentioned approaches:
+
+| Test | Instance | EC2 Price | EMR Price | Total Nodes | Total Time | Total Cost |
+|---|---|---|---|---|---|---|
+| DDBExport-112000 | i3.8xlarge | - | - | 1 | - | - |
+| DDBExport-112000 | i3.16xlarge | - | - | 1 | - | - |
+| Pipeline-112000 | m3.xlarge | - | - | 95 | - | - |
+| Pipeline-192000 | m3.xlarge | - | - | - | - | - |
+
 
 ## Others
 
