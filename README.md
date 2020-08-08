@@ -172,7 +172,7 @@ As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" tem
 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | minutes |
 | 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
 
-Now let's do a cost comparision on the above-mentioned approaches (using on-demand pricing):
+Now let's do a cost comparision on the above-mentioned approaches (using on-demand pricing in the us-east-1 region):
 
 | Test | Instance | EC2 Price | EMR Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|
