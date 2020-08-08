@@ -145,7 +145,9 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
       s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
     os.remove(filename)
 
+
 """
+The main program starts here.
 At the beginning, nothing is defined. Enforce user-supplied values.
 """
 region = None
@@ -202,6 +204,27 @@ if all([region, table, process_count, rcu, destination, size]) == False:
   print('usage:')
   print('python DDBExport.py -r <region> -t <table> -p <processes> -c <capacity> -s <size> -d <destination>')
 else:
+  """
+  Make sure the DynamoDB table exists and has the desired level of RCU. 
+  """
+  try:
+    session = boto3.session.Session()
+    client  = session.resource('dynamodb', region_name = region)
+    response = client.Table(table)
+    print('The DynamoDB table is ' + response.table_status + '.')
+    if response.table_status != 'ACTIVE':
+      print('The DynamoDB table must be in ACTIVE state to run DDBExport.')
+      sys.exit()
+    if response.billing_mode_summary is None:
+      print('The DynamoDB table has provisioned RCU: ' + str(response.provisioned_throughput['ReadCapacityUnits']))
+      if response.provisioned_throughput['ReadCapacityUnits'] < rcu:
+        print('The provisioned RCU is smaller than the desired capacity (' + str(rcu) + ') for DDBExport.')
+        sys.exit()
+    else:
+      print('The DynamoDB table is using on-demand capacity.')
+  except Exception as e:
+    print(str(e))
+    sys.exit()
   """
   Setup the QoSCounter. 
   """
