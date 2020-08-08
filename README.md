@@ -124,7 +124,7 @@ python GenerateTestData.py -c 1000000 -f test.json
 python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 ~~~~
 
-## Performance Considerations
+## Performance and Cost Considerations
 
 When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.78 TB data. There are XXX items in the table, with each item being 399.2 KB. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
 
@@ -169,7 +169,7 @@ As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" tem
 
 | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Time |
 |---|---|---|---|---|---|---|
-| 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | minutes |
+| 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | 136 minutes |
 | 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
 
 Now let's do a cost comparision on the above-mentioned approaches (using on-demand pricing in the us-east-1 region):
@@ -178,7 +178,7 @@ Now let's do a cost comparision on the above-mentioned approaches (using on-dema
 |---|---|---|---|---|---|---|
 | DDBExport-1 | i3.8xlarge | $2.496 | N/A | 1 | - | - |
 | DDBExport-2 | i3.16xlarge | $4.992 | N/A | 1 | - | - |
-| Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | 95 | - | - |
+| Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | 95 | 136 minutes | $71.60 |
 | Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | - | - | - |
 
 
