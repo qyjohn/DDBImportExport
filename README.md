@@ -168,7 +168,7 @@ The following table shows the time needed to perform the export with DDBExport.
 As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. The following table shows the time needed to perform the export with Data Pipeline.
 
 | RCU | Instance | vCPU | Memory | Nodes | Containers | Time |
-|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | minutes |
 | 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
 
