@@ -172,14 +172,14 @@ As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" tem
 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | minutes |
 | 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
 
-Now let's do a cost comparision on the above-mentioned approaches:
+Now let's do a cost comparision on the above-mentioned approaches (using on-demand pricing):
 
 | Test | Instance | EC2 Price | EMR Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|
-| DDBExport-112000 | i3.8xlarge | - | - | 1 | - | - |
-| DDBExport-112000 | i3.16xlarge | - | - | 1 | - | - |
-| Pipeline-112000 | m3.xlarge | - | - | 95 | - | - |
-| Pipeline-192000 | m3.xlarge | - | - | - | - | - |
+| DDBExport-112000 | i3.8xlarge | 2.496 | N/A | 1 | - | - |
+| DDBExport-112000 | i3.16xlarge | 4.992 | N/A | 1 | - | - |
+| Pipeline-112000 | m3.xlarge | 0.266 | 0.0665 | 95 | - | - |
+| Pipeline-192000 | m3.xlarge | 0.266 | 0.0665 | - | - | - |
 
 
 ## Others
