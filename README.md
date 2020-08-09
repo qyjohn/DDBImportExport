@@ -212,7 +212,8 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 
 | ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
-| 1 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94
+| 1 | $2.496 / hour | $14.56 / hour | 62000 | - | - |
+| 2 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94 |
 
 | Test | Instance | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|---|
