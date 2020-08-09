@@ -128,7 +128,7 @@ python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 
 ## Performance and Cost Considerations for DDBExport
 
-When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.8 TB data. There are over 37 million items in the table, with each item being around 200 KB. The following tests are done on i3.8xlarge, i3.16xlarge and i3en.24xlarge with Amazon Linux 2. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
+When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.8 TB data. There are over 37 million items in the table, with each item being around 200 KB. The EC2 instances are i3.8xlarge, i3.16xlarge and i3en.24xlarge with Amazon Linux 2. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
 
 On i3.8xlarge, create a RAID0 device with 4 instance-store volumes:
 
