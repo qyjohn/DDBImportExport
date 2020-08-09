@@ -2,7 +2,7 @@ This project provides an easy way to import data from JSON files into DynamoDB t
 
 ## Installation
 
-DDBImportExport requires Python 3 and Virtual Environments (venv).
+DDBImportExport requires Python 3, Virtual Environments (venv), and boto3.
 
 On a newly launched EC2 instance with Amazon Linux 2, install DDBImportExport with the following commands:
 
@@ -206,9 +206,3 @@ Comparing tests with output to S3 and tests with output to HD, tests with output
 - Sync the exported data from HD to S3 with the [aws s3 sync](https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html) command.
 
 Comparing test 8 with test 10, DDBExport achieves x% speed-up and y% cost reduction, as compared to Data Pipeline. Also, Data Pipeline is a much more complicate solution, with multiple AWS services involved, and a large number of nodes in a cluster. DDBExport achieves this with a single command line on a single EC2 instance. 
-
-## Others
-
-You should also be aware of the following dynamodump project:
-
-https://github.com/bchew/dynamodump
