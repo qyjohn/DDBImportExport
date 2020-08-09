@@ -128,28 +128,30 @@ python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 
 ## Performance and Cost Considerations
 
-When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.8 TB data. There are over 37 million items in the table, with each item being around 200 KB. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
+When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.8 TB data. There are over 37 million items in the table, with each item being around 200 KB. The following tests are done on i3.8xlarge, i3.16xlarge and i3en.24xlarge with Amazon Linux 2. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
 
-On i3.8xlarge:
+On i3.8xlarge, create a RAID0 device with 4 instance-store volumes:
 
 ~~~~
-# Create a RAID0 device and create EXT4 file system without lazy initialization
 sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=4 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1
-sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/md0
-# Mount the RAID0 device and change the ownership to ec2-user
-sudo mkdir /data
-sudo mount /dev/md0 /data
-sudo chown -R ec2-user:ec2-user /data
-# Time the DDBExport process
-cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 1024 -d s3://bucket/T32/
 ~~~~
 
-On i3.16xlarge:
+On i3.16xlarge, create a RAID0 device with 8 instance-store volumes:
 
 ~~~~
-# Create a RAID0 device and create EXT4 file system without lazy initialization
 sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=8 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1 /dev/nvme5n1 /dev/nvme6n1 /dev/nvme7n1
+~~~~
+
+On i3en.24xlarge, create a RAID0 device with 8 instance-store volumes:
+
+~~~~
+sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=8 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1 /dev/nvme5n1 /dev/nvme6n1 /dev/nvme7n1 /dev/nvme8n1 
+~~~~
+
+After that, create EXT4 file system without lazy initialization, mount the RAID0 device for writing. On i3.8xlarge, we use 32 processes. On i3.16xlarge and i3en.24xlarge, we use 64 processes.
+
+~~~~
+# Create EXT4 file system without lazy initialization
 sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/md0
 # Mount the RAID0 device and change the ownership to ec2-user
 sudo mkdir /data
@@ -157,16 +159,17 @@ sudo mount /dev/md0 /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 1024 -d s3://bucket/T64/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 1024 -d s3://bucket/prefix/
 ~~~~
 
-With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations. This alternative workload pattern slows down the export process. On i3.8xlarge, DDBExport can only achieve 62000 RCU, although 112000 RCU is provisioned. The EC2 instance achieves 500,000,000 bytes per second in both NetworkIn and NetworkOut. On i3.16xlarge, DDBExport can only achieve 62000 RCU, although 192000 RCU is provisioned. The EC2 instance achieves 500,000,000 bytes per second in both NetworkIn and NetworkOut. 
+
+With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations. This alternative workload pattern slows down the export process. On i3.8xlarge, DDBExport can only achieve 62000 RCU, although 112000 RCU is provisioned. The EC2 instance achieves 500,000,000 bytes per second in both NetworkIn and NetworkOut. On i3.16xlarge, DDBExport can only achieve 100000 RCU, although 192000 RCU is provisioned. The EC2 instance achieves 833,000,000 bytes per second in both NetworkIn and NetworkOut. 
 
 To deal with this issue, we use [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) as a proxy for S3. With Amazon FSx for Lustre, the destination S3 bucket becomes a sub-folder under the Lustre mounting point. This converts the S3 destination into a local disk destination, removing the above-mentioned alternative workload pattern.
 
 We create an FSx for Lustre, with SCRATCH_1 deployment type and 10.8 TB storage capacity. This setup provides 2160 MB/s throughput (200 MB/s/TiB), with the hourly cost being $2.1455 (in the us-east-1 region). To match this throughput requirements, we choose the m5.24xlarge instance type with 25 Gbps network throughput, but with 96 vCPU cores to allow a high level of concurrency. 
 
-As a comparision, we perform another test the m5dn.24xlarge instance type with the same number of vCPU cores and memory, but with 100 Gbps network throughput and 4 x 900 NVMe SSD instance-store volumes. 
+As a comparision, we perform another test the i3en.24xlarge instance type with 100 Gbps network throughput. 
 
 On m5.24xlarge:
 
@@ -180,52 +183,42 @@ sudo mount -t lustre -o noatime,flock file_system_dns_name@tcp:/mountname /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 90 -c 192000 -s 1024 -d S3ImportPath/T90FSx/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 1024 -d S3ImportPath/T90FSx/
 ~~~~
 
-On m5dn.24xlarge:
 
-~~~~
-# Create a RAID0 device and create EXT4 file system without lazy initialization
-sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=4 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1
-sudo mkfs.ext4 -E lazy_itable_init=0,lazy_journal_init=0 /dev/md0
-# Mount the RAID0 device and change the ownership to ec2-user
-sudo mkdir /data
-sudo mount /dev/md0 /data
-sudo chown -R ec2-user:ec2-user /data
-# Time the DDBExport process
-cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 90 -c 192000 -s 1024 -d s3://bucket/T90DN/
-~~~~
 
 The following table shows the time needed to perform the export with DDBExport.
 
-| RCU | Instance | vCPU | Memory | SSD Disks | Network | Processes | Time |
-|---|---|---|---|---|---|---|---|
-| 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | 239 minutes |
-| 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 |  xxx |
-| 192000 | m5.24xlarge | 96 | 384 GB | N/A | 25 Gbps | 90 |  xxx |
-| 192000 | m5dn.24xlarge | 96 | 384 GB | N/A | 100 Gbps | 90 |  xxx |
+| ID | RCU | Instance | vCPU | Memory | SSD Disks | Network | Processes | Output |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | HD |
+| 2 | 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | S3 |
+| 3 | 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 | HD |
+| 4 | 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 | S3 |
+| 5 | 192000 | i3en.24xlarge | 96 | 768 GB | 8 x 7500 | 100 Gbps | 64 | HD |
+| 6 | 192000 | i3en.24xlarge | 96 | 768 GB | 8 x 7500 | 100 Gbps | 64 | S3 |
+| 7 | 192000 | m5.24xlarge | 96 | 384 GB | N/A | 25 Gbps | 90 |  xxx |
 
 As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. By default, the m3.xlarge instance type is used, with up to 8 containers on each core node. The following table shows the time needed to perform the export with Data Pipeline.
 
-| RCU | Instance | vCPU | Memory | Core Nodes | Containers | Time |
-|---|---|---|---|---|---|---|
-| 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | 136 minutes |
-| 192000 | m3.xlarge | 4 | 15 GB | 160 |  1277 | 84 minutes |
+| ID | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Time |
+|---|---|---|---|---|---|---|---|
+| 8 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | 136 minutes |
+| 9 | 192000 | m3.xlarge | 4 | 15 GB | 160 |  1277 | 84 minutes |
 
 Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does include the cost for the provisioned read capacity units ($0.00013 per RCU per hour) on the DynamoDB table, which is not shown here.
 
 | Test | Instance | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|---|
 | DDBExport-1 | i3.8xlarge | $2.496 | N/A | N/A | 1 | 239 minutes | $67.94 |
-| DDBExport-2 | i3.16xlarge | $4.992 | N/A | N/A | 1 | - | - |
-| DDBExport-3 | m5.24xlarge | $4.608 | N/A | $2.1455 | 1 | - | - |
-| DDBExport-4 | m5dn.24xlarge | $6.528 | N/A | N/A | 1 | - | - |
+| DDBExport-2 | i3.16xlarge | $4.992 | N/A | N/A | 1 | 159 minutes | 79.37 |
+| DDBExport-3 | i3en.24xlarge | $10.848 | N/A | N/A | 1 | - | - |
+| DDBExport-4 | m5.24xlarge | $4.608 | N/A | $2.1455 | 1 | - | - |
 | Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | N/A | 95 | 136 minutes | $104.60 |
 | Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | N/A | 161 | 84 minutes | $109.89 |
 
-It should be noted that in the DDBExport tests, a significant portion of the provisioned RCU is not used (45% for i3.8xlarge test, 35% for i3.16xlarge test). If we reduce the provisioned RCU to the same level as the consumed RCU, we can achieve some further cost saving with DDBExport ($24.86 cost saving for i3.8xlarge, ). This can be done by starting DDBExport and observing the actual level of consumed RCU in CloudWatch, then changing the provisioned RCU to slightly over the consumed RCU. Once you know the actual level of consumed RCU for a certain configuration, the next time you can start DDBExport with the same amount of provisioned RCU. 
+It should be noted that in the DDBExport tests, a significant portion of the provisioned RCU is not used (over 45% for both the tests on i3.8xlarge and i3.16xlarge). If we reduce the provisioned RCU to the same level as the consumed RCU, we can achieve some further cost saving with DDBExport ($24.86 cost saving for the test on i3.8xlarge, $31.69 cost saving for the test on i3.16xlarge). This can be done by starting DDBExport and observing the actual level of consumed RCU in CloudWatch, then changing the provisioned RCU to slightly over the consumed RCU. Once you know the actual level of consumed RCU for a certain configuration, the next time you can start DDBExport with the same amount of provisioned RCU. 
 
 ## Others
 

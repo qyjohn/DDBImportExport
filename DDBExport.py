@@ -24,6 +24,7 @@ import multiprocessing
 import getopt
 import decimal
 import os
+import random
 
 """
 QoSCounter is a LeakyBucket QoS algorithm. Each sub-process can not do any Scan 
@@ -83,6 +84,11 @@ The QoSCounter is used for QoS control.
 """   
 def ddbExportWorker(workerId, region, table, total_segments, counter, destination, size, isS3, s3Bucket, s3Prefix):
   """
+  We start with a random sleep. This is to avoid all sub-processes performing disk 
+  flush at exactly the same time.
+  """
+  time.sleep(random.randrange(10))
+  """
   We create one DynamoDB client per worker process. This is because boto3 session 
   is not thread safe. If the destination is on S3, then we create an S3 client as 
   well.
@@ -92,7 +98,6 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
   ddb_table   = dynamodb.Table(table)
   if isS3:
     s3 = session.resource('s3', region_name = region)
-  
   """
   Output filename is table-workerId-fileId.json.
   """
