@@ -193,7 +193,7 @@ The following table summarizes the execution time and execution cost for the abo
 | 5 | $10.848 / hour | $24.96 / hour | - | - | - |
 | 6 | $10.848 / hour | $24.96 / hour | 140000 | 110 minutes | $65.64 |
 | 7 | $10.848 / hour | $24.96 / hour | - | - | - |
-| 8 | $10.848 / hour | $24.96 / hour | 192000 | 80 minutes | $67.94 |
+| 8 | $10.848 / hour | $24.96 / hour | 192000 | 80 minutes | $47.74 |
 | 9 | $31.588 / hour | $14.56 / hour | 112000 | 136 minutes | $104.60 |
 | 10 | $53.530 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
 
@@ -205,8 +205,8 @@ Comparing tests with output to S3 and tests with output to HD, tests with output
 - Reduce the provisioned RCU on the table.
 - Sync the exported data from HD to S3 with the [aws s3 sync](https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html) command.
 
-Comparing test 8 with test 10, DDBExport achieves x% speed-up and y% cost reduction, as compared to Data Pipeline. Also, Data Pipeline is a much more complicate solution, with multiple AWS services involved, and a large number of nodes in a cluster. DDBExport achieves this with a single command line on a single EC2 instance. As such, DDBExport is an ideal tool to export DynamoDB tables at TB scale, with both cost and deadline constraints. 
+Comparing test 8 with test 10, DDBExport achieves some slight speed-up (5%) with significant cost reduction (56%), as compared to Data Pipeline. Also, Data Pipeline is a much more complicate solution, with multiple AWS services involved, and a large number of nodes in a cluster. DDBExport achieves this with a single command line on a single EC2 instance. As such, DDBExport is an ideal tool to export DynamoDB tables at TB scale, meeting both cost and deadline constraints. 
 
 ## Performance and Cost Considerations for DDBImport
 
-To be added when the DDBImport module is improved to support both HD and S3 input source, as well as multiple input files.
+To be added when the DDBImport module is improved to support both HD and S3 input source, as well as multiple input files. See TODO.md for details.
