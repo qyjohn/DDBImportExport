@@ -202,7 +202,7 @@ The following table shows the time needed to perform the export with DDBExport.
 
 | RCU | Instance | vCPU | Memory | SSD Disks | Network | Processes | Time |
 |---|---|---|---|---|---|---|---|
-| 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | aaa |
+| 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | 239 minutes |
 | 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 |  xxx |
 | 192000 | m5.24xlarge | 96 | 384 GB | N/A | 25 Gbps | 90 |  xxx |
 | 192000 | m5dn.24xlarge | 96 | 384 GB | N/A | 100 Gbps | 90 |  xxx |
@@ -218,7 +218,7 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 
 | Test | Instance | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|---|
-| DDBExport-1 | i3.8xlarge | $2.496 | N/A | N/A | 1 | - | - |
+| DDBExport-1 | i3.8xlarge | $2.496 | N/A | N/A | 1 | 239 minutes | $67.94 |
 | DDBExport-2 | i3.16xlarge | $4.992 | N/A | N/A | 1 | - | - |
 | DDBExport-3 | m5.24xlarge | $4.608 | N/A | $2.1455 | 1 | - | - |
 | DDBExport-4 | m5dn.24xlarge | $6.528 | N/A | N/A | 1 | - | - |
