@@ -166,7 +166,7 @@ To deal with this issue, we use [Amazon FSx for Lustre](https://docs.aws.amazon.
 
 We create an FSx for Lustre, with SCRATCH_1 deployment type and 10.8 TB storage capacity. This setup provides 2160 MB/s throughput (200 MB/s/TiB), with the hourly cost being $2.1455 (in the us-east-1 region). To match this throughput requirements, we choose the m5.24xlarge instance type with 25 Gbps network throughput, but with 96 vCPU cores to allow a high level of concurrency. 
 
-As a comparision, we perform another test the m5dn.24xlarge instance type with the same number of vCPU cores and memory, but with 100 Gbps network throughput. 
+As a comparision, we perform another test the m5dn.24xlarge instance type with the same number of vCPU cores and memory, but with 100 Gbps network throughput and 4 x 900 NVMe SSD instance-store volumes. 
 
 On m5.24xlarge:
 
@@ -225,6 +225,7 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 | Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | N/A | 95 | 136 minutes | $104.60 |
 | Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | N/A | 161 | 84 minutes | $109.89 |
 
+It should be noted that in the DDBExport tests, a significant portion of the provisioned RCU is not used (45% for i3.8xlarge test, 35% for i3.16xlarge test). If we reduce the provisioned RCU to the same level as the consumed RCU, we can achieve some further cost saving with DDBExport ($24.86 cost saving for i3.8xlarge, ). This can be done by starting DDBExport and observing the actual level of consumed RCU in CloudWatch, then changing the provisioned RCU to slightly over the consumed RCU. Once you know the actual level of consumed RCU for a certain configuration, the next time you can start DDBExport with the same amount of provisioned RCU. 
 
 ## Others
 
