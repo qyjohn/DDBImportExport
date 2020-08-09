@@ -45,10 +45,11 @@ class QoSCounter(object):
 
     def refill(self):
         with self.lock:
-            if self.capacity.value < 0:
-                self.capacity.value += self.refillRate.value
-            else:
-                self.capacity.value = self.refillRate.value
+            self.capacity.value += self.refillRate.value
+  #          if self.capacity.value < 0:
+  #              self.capacity.value += self.refillRate.value
+  #          else:
+  #              self.capacity.value = self.refillRate.value
 
     def value(self):
         with self.lock:

@@ -2,6 +2,8 @@ This project provides an easy way to import data from JSON files into DynamoDB t
 
 ## Installation
 
+DDBImportExport requires Python 3 and Virtual Environments (venv).
+
 On a newly launched EC2 instance with Amazon Linux 2, install DDBImportExport with the following commands:
 
 ~~~~
@@ -91,7 +93,7 @@ python DDBExport.py -r us-east-1 -t TestTable1 -p 8 -c 1000 -s 1024 -d /data
 python DDBExport.py -r us-west-2 -t TestTable2 -p 8 -c 2000 -s 2048 -d s3://bucket/prefix/
 ~~~~
 
-It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. However, it is important that you have sufficient provisioined RCU on the table, and specify sufficient max capacity for the export with the -c option. In general, a single process can achieve over 3200 RCU, which is approximately 25 MB/s. With 4 processes, you can achieve approximately 13000 RCU or 100 MB/s.
+With a small table (at GB scale), it is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. However, it is important that you have sufficient provisioined RCU on the table, and specify sufficient max capacity for the export with the -c option. In general, a single process can achieve over 3200 RCU, which is approximately 25 MB/s. With 4 processes, you can achieve approximately 13000 RCU or 100 MB/s. 
 
 Depending on the number of sub-processes you use and the maximum size of the output file, DDBExport will create multiple JSON files in the output destination. The name of the JSON files will be TableName-WorkerID-FileNumber.json. 
 
@@ -140,7 +142,7 @@ sudo mount /dev/md0 /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 1024 -d s3://bucket/prefix/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 1024 -d s3://bucket/T32/
 ~~~~
 
 On i3.16xlarge:
@@ -155,7 +157,28 @@ sudo mount /dev/md0 /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 1024 -d s3://bucket/prefix/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 1024 -d s3://bucket/T64/
+~~~~
+
+With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations. This alternative workload pattern slows down the export process. On i3.8xlarge, DDBExport can only achieve 62000 RCU, although 112000 RCU is provisioned. The EC2 instance achieves 500,000,000 bytes per second in both NetworkIn and NetworkOut. On i3.16xlarge, DDBExport can only achieve 62000 RCU, although 192000 RCU is provisioned. The EC2 instance achieves 500,000,000 bytes per second in both NetworkIn and NetworkOut. 
+
+To deal with this issue, we use [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) as a proxy for S3. With Amazon FSx for Lustre, the destination S3 bucket becomes a sub-folder under the Lustre mounting point. This converts the S3 destination into a local disk destination, removing the above-mentioned alternative workload pattern.
+
+We create an FSx for Lustre, with SCRATCH_1 deployment type and 10.8 TB storage capacity. This setup provides 2160 MB/s throughput (200 MB/s/TiB), with the hourly cost being $2.1455 (in the us-east-1 region). To match this throughput requirements, we choose the m5.24xlarge instance type with 25 Gbps network throughput, but with 96 vCPU cores to allow a high level of concurrency. 
+
+On m5.24xlarge:
+
+~~~~
+# Install the Lustre client
+sudo amazon-linux-extras install -y lustre2.10
+sudo yum -y update kernel && sudo reboot
+# Mount FSx for Lustre
+sudo mkdir /data
+sudo mount -t lustre -o noatime,flock file_system_dns_name@tcp:/mountname /data
+sudo chown -R ec2-user:ec2-user /data
+# Time the DDBExport process
+cd /data
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 90 -c 192000 -s 1024 -d S3ImportPath/T90/
 ~~~~
 
 The following table shows the time needed to perform the export with DDBExport.
@@ -164,22 +187,24 @@ The following table shows the time needed to perform the export with DDBExport.
 |---|---|---|---|---|---|---|---|
 | 112000 | i3.8xlarge | 32 | 244 GB | 4 x 1900 GB | 10 Gbps | 32 | aaa |
 | 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 |  xxx |
+| 192000 | m5.24xlarge | 96 | 384 GB | N/A | 25 Gbps | 90 |  xxx |
 
 As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. By default, the m3.xlarge instance type is used, with up to 8 containers on each core node. The following table shows the time needed to perform the export with Data Pipeline.
 
 | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Time |
 |---|---|---|---|---|---|---|
 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | 136 minutes |
-| 192000 | m3.xlarge | 4 | 15 GB | xx |  xxx | minutes |
+| 192000 | m3.xlarge | 4 | 15 GB | 160 |  1277 | 84 minutes |
 
 Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does not include the cost for the provisioned capacity on the DynamoDB table.
 
-| Test | Instance | EC2 Price | EMR Price | Total Nodes | Total Time | Total Cost |
+| Test | Instance | DDB Price | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|
-| DDBExport-1 | i3.8xlarge | $2.496 | N/A | 1 | - | - |
-| DDBExport-2 | i3.16xlarge | $4.992 | N/A | 1 | - | - |
-| Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | 95 | 136 minutes | $71.60 |
-| Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | - | - | - |
+| DDBExport-1 | i3.8xlarge | $0.00013 | $2.496 | N/A | N/A | 1 | - | - |
+| DDBExport-2 | i3.16xlarge | $0.00013 | $4.992 | N/A | N/A | 1 | - | - |
+| DDBExport-3 | m5.24xlarge | $0.00013 | $4.608 | N/A | $2.1455 | 1 | - | - |
+| Pipeline-1 | m3.xlarge | $0.00013 | $0.266 | $0.0665 | N/A | 95 | 136 minutes | $71.60 |
+| Pipeline-2 | m3.xlarge | $0.00013 | $0.266 | $0.0665 | N/A | 161 | 84 minutes | $74.95 |
 
 
 ## Others
