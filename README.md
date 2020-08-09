@@ -212,17 +212,16 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 
 | ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
-| 1 | $2.496 / hour | $14.56 / hour | 62000 | - | - |
+| 1 | $2.496 / hour | $14.56 / hour | - | - | - |
 | 2 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94 |
-
-| Test | Instance | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
-|---|---|---|---|---|---|---|---|
-| DDBExport-1 | i3.8xlarge | $2.496 | N/A | N/A | 1 | 239 minutes | $67.94 |
-| DDBExport-2 | i3.16xlarge | $4.992 | N/A | N/A | 1 | 159 minutes | 79.37 |
-| DDBExport-3 | i3en.24xlarge | $10.848 | N/A | N/A | 1 | - | - |
-| DDBExport-4 | m5.24xlarge | $4.608 | N/A | $2.1455 | 1 | - | - |
-| Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | N/A | 95 | 136 minutes | $104.60 |
-| Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | N/A | 161 | 84 minutes | $109.89 |
+| 3 | $4.992 / hour | $24.96 / hour | - | - | - |
+| 4 | $4.992 / hour | $24.96 / hour | 100000 | 159 minutes | $79.37 |
+| 5 | $10.848 / hour | $24.96 / hour | - | - | - |
+| 6 | $10.848 / hour | $24.96 / hour | 140000 | 239 minutes | $67.94 |
+| 7 | $10.848 / hour | $24.96 / hour | - | - | - |
+| 8 | $10.848 / hour | $24.96 / hour | - | 239 minutes | $67.94 |
+| 9 | $31.588 / hour | $14.56 / hour | 112000 | 136 minutes | 104.60 |
+| 10 | $53.53 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
 
 It should be noted that in the DDBExport tests, a significant portion of the provisioned RCU is not used (over 45% for both the tests on i3.8xlarge and i3.16xlarge). If we reduce the provisioned RCU to the same level as the consumed RCU, we can achieve some further cost saving with DDBExport ($24.86 cost saving for the test on i3.8xlarge, $31.69 cost saving for the test on i3.16xlarge). This can be done by starting DDBExport and observing the actual level of consumed RCU in CloudWatch, then changing the provisioned RCU to slightly over the consumed RCU. Once you know the actual level of consumed RCU for a certain configuration, the next time you can start DDBExport with the same amount of provisioned RCU. 
 
