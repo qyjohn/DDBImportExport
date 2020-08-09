@@ -199,7 +199,7 @@ As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" tem
 Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does not include the cost for the provisioned capacity on the DynamoDB table.
 
 | Test | Instance | DDB Price | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|
 | DDBExport-1 | i3.8xlarge | $0.00013 | $2.496 | N/A | N/A | 1 | - | - |
 | DDBExport-2 | i3.16xlarge | $0.00013 | $4.992 | N/A | N/A | 1 | - | - |
 | DDBExport-3 | m5.24xlarge | $0.00013 | $4.608 | N/A | $2.1455 | 1 | - | - |
