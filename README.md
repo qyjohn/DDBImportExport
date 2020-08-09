@@ -203,16 +203,16 @@ The following table shows the time needed to perform the export with DDBExport.
 
 As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. By default, the m3.xlarge instance type is used, with up to 8 containers on each core node. The following table shows the time needed to perform the export with Data Pipeline.
 
-| ID | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Output |
+| ID | RCU | Instance | vCPU | Memory | Nodes | Containers | Output |
 |---|---|---|---|---|---|---|---|
-| 9 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | S3 |
-| 10 | 192000 | m3.xlarge | 4 | 15 GB | 160 |  1277 | S3 |
+| 9 | 112000 | m3.xlarge | 4 | 15 GB | 1 + 94 | 749 | S3 |
+| 10 | 192000 | m3.xlarge | 4 | 15 GB | 1 + 160 |  1277 | S3 |
 
 Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does include the cost for the provisioned read capacity units ($0.00013 per RCU per hour) on the DynamoDB table, which is not shown here.
 
-| ID | Instance | Nodes | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
-|---|---|---|---|---|---|---|---|
-| 1 | i3.8xlarge | 1 | $2.496 | $14.56 | 62000 | 239 minutes | $67.94
+| ID | | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
+|---|---|---|---|---|---|
+| 1 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94
 
 | Test | Instance | EC2 Price | EMR Price | FSx Price | Total Nodes | Total Time | Total Cost |
 |---|---|---|---|---|---|---|---|
