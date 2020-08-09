@@ -221,7 +221,7 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 | DDBExport-1 | i3.8xlarge | $2.496 | N/A | N/A | 1 | - | - |
 | DDBExport-2 | i3.16xlarge | $4.992 | N/A | N/A | 1 | - | - |
 | DDBExport-3 | m5.24xlarge | $4.608 | N/A | $2.1455 | 1 | - | - |
-| DDBExport-3 | m5dn.24xlarge | $6.528 | N/A | N/A | 1 | - | - |
+| DDBExport-4 | m5dn.24xlarge | $6.528 | N/A | N/A | 1 | - | - |
 | Pipeline-1 | m3.xlarge | $0.266 | $0.0665 | N/A | 95 | 136 minutes | $104.60 |
 | Pipeline-2 | m3.xlarge | $0.266 | $0.0665 | N/A | 161 | 84 minutes | $109.89 |
 
