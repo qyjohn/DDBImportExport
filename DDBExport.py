@@ -85,7 +85,8 @@ The QoSCounter is used for QoS control.
 def ddbExportWorker(workerId, region, table, total_segments, counter, destination, size, isS3, s3Bucket, s3Prefix):
   """
   We start with a random sleep. This is to avoid all sub-processes performing disk 
-  flush at exactly the same time.
+  flush or S3 upload at exactly the same time. With this approach, we kind of 
+  reshaping the disk I/O and network I/O pattern to achieve better performance.
   """
   time.sleep(random.randrange(10))
   """
