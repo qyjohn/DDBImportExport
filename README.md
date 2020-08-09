@@ -148,7 +148,7 @@ On i3en.24xlarge, create a RAID0 device with 8 instance-store volumes:
 sudo mdadm --create /dev/md0 --level=0 --name=RAID0 --raid-devices=8 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1 /dev/nvme5n1 /dev/nvme6n1 /dev/nvme7n1 /dev/nvme8n1 
 ~~~~
 
-After that, create EXT4 file system without lazy initialization, mount the RAID0 device for writing. On i3.8xlarge, we use 32 processes. On i3.16xlarge and i3en.24xlarge, we use 64 processes.
+After that, create EXT4 file system without lazy initialization, mount the RAID0 device for writing. On i3.8xlarge, we use 32 processes. On i3.16xlarge, we use 64 processes. On i3en.24xlarge, we use both 64 and 96 processes.
 
 ~~~~
 # Create EXT4 file system without lazy initialization
@@ -159,36 +159,10 @@ sudo mount /dev/md0 /data
 sudo chown -R ec2-user:ec2-user /data
 # Time the DDBExport process
 cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 32 -c 112000 -s 1024 -d s3://bucket/prefix/
+time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p <processes> -c 112000 -s 1024 -d <destination>
 ~~~~
 
-
-With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations. This alternative workload pattern slows down the export process. On i3.8xlarge, DDBExport can only achieve 62000 RCU, although 112000 RCU is provisioned. The EC2 instance achieves 500,000,000 bytes per second in both NetworkIn and NetworkOut. On i3.16xlarge, DDBExport can only achieve 100000 RCU, although 192000 RCU is provisioned. The EC2 instance achieves 833,000,000 bytes per second in both NetworkIn and NetworkOut. 
-
-To deal with this issue, we use [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) as a proxy for S3. With Amazon FSx for Lustre, the destination S3 bucket becomes a sub-folder under the Lustre mounting point. This converts the S3 destination into a local disk destination, removing the above-mentioned alternative workload pattern.
-
-We create an FSx for Lustre, with SCRATCH_1 deployment type and 10.8 TB storage capacity. This setup provides 2160 MB/s throughput (200 MB/s/TiB), with the hourly cost being $2.1455 (in the us-east-1 region). To match this throughput requirements, we choose the m5.24xlarge instance type with 25 Gbps network throughput, but with 96 vCPU cores to allow a high level of concurrency. 
-
-As a comparision, we perform another test the i3en.24xlarge instance type with 100 Gbps network throughput. 
-
-On m5.24xlarge:
-
-~~~~
-# Install the Lustre client
-sudo amazon-linux-extras install -y lustre2.10
-sudo yum -y update kernel && sudo reboot
-# Mount FSx for Lustre
-sudo mkdir /data
-sudo mount -t lustre -o noatime,flock file_system_dns_name@tcp:/mountname /data
-sudo chown -R ec2-user:ec2-user /data
-# Time the DDBExport process
-cd /data
-time python ~/DDBImportExport/DDBExport.py -r us-west-2 -t TestTable2 -p 64 -c 192000 -s 1024 -d S3ImportPath/T90FSx/
-~~~~
-
-
-
-The following table shows the time needed to perform the export with DDBExport.
+The following table summaries the tests peformed with DDBExport.
 
 | ID | RCU | Instance | vCPU | Memory | SSD Disks | Network | Processes | Output |
 |---|---|---|---|---|---|---|---|---|
@@ -223,7 +197,7 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 | 9 | $31.588 / hour | $14.56 / hour | 112000 | 136 minutes | 104.60 |
 | 10 | $53.53 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
 
-It should be noted that in the DDBExport tests, a significant portion of the provisioned RCU is not used (over 45% for both the tests on i3.8xlarge and i3.16xlarge). If we reduce the provisioned RCU to the same level as the consumed RCU, we can achieve some further cost saving with DDBExport ($24.86 cost saving for the test on i3.8xlarge, $31.69 cost saving for the test on i3.16xlarge). This can be done by starting DDBExport and observing the actual level of consumed RCU in CloudWatch, then changing the provisioned RCU to slightly over the consumed RCU. Once you know the actual level of consumed RCU for a certain configuration, the next time you can start DDBExport with the same amount of provisioned RCU. 
+It should be noted that in test 2, 4 and 6, a significant portion of the provisioned RCU is not used. With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations. This alternative workload pattern slows down the export process.
 
 ## Others
 
