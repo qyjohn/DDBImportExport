@@ -199,7 +199,7 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 
 It should be noted that in test 2, 4 and 6, a significant portion of the provisioned RCU is not used. With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations, both producing a significant pressure on the network. When the network is not fast enough, this alternative workload pattern slows down the export process. As shown in test 8, with sufficient network bandwidth and increased concurrency, it is possible to fully utilize 192000 provisioned RCU on a single node, even with output on S3. 
 
-Comparing tests with output to S3 and tests with output to HD, tests with output to HD achieve x% to y% speed-up. Considering the cost of the provisioned RCU is significant, if the RAID0 device is sufficient to hold all the exported data (the RAID0 device on i3en.24xlarge provides 55 TB storage), it is desired to perform the export with a multi-step approach, as below:
+Comparing tests with output to S3 and tests with output to HD, tests with output to HD achieve x% to y% speed-up. Considering the cost of the provisioned RCU is significant, if the RAID0 device is sufficient to hold all the exported data (the RAID0 device on i3en.24xlarge provides 55 TB storage), it would be more cost-effective to perform the export with a multi-step approach, as below:
 
 - Use DDBExport to export to HD.
 - Reduce the provisioned RCU on the table.

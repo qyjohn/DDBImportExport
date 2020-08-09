@@ -109,21 +109,40 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
     filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:04d}".format(fileId) + '.json'
   out=open(filename, 'w')
   """
-  Keep on scanning the segment until the end of the segment. Before each scan, wait for QoSCounter 
-  to be greater than zero. 
+  Before doing any work, wait for QoSCounter to be greater than zero. 
   """
   while counter.value() <= 0:
     time.sleep(1)
   response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ReturnConsumedCapacity='TOTAL')  
+  """
+  Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
+  consume() method.
+  """
   counter.consume(int(response['ConsumedCapacity']['CapacityUnits']))
+  """
+  Dump the items into the output file, one item per line. 
+  """
   for item in response['Items']:
     out.write(json.dumps(item, default=decimal_default) + '\n')
   scans = 1
+  """
+  Keep on scanning the segment until the end of the segment. 
+  """
   while 'LastEvaluatedKey' in response:
+    """
+    Before doing any work, wait for QoSCounter to be greater than zero. 
+    """
     while counter.value() <= 0:
       time.sleep(1)
     response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=response['LastEvaluatedKey'], ReturnConsumedCapacity='TOTAL')
+    """
+    Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
+    consume() method.
+    """
     counter.consume(int(response['ConsumedCapacity']['CapacityUnits']))
+    """
+    Dump the items into the output file, one item per line. 
+    """
     for item in response['Items']:
       out.write(json.dumps(item, default=decimal_default) + '\n')
     scans = scans + 1
