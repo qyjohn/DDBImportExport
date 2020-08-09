@@ -210,7 +210,7 @@ As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" tem
 
 Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does include the cost for the provisioned read capacity units ($0.00013 per RCU per hour) on the DynamoDB table, which is not shown here.
 
-| ID | | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
+| ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
 | 1 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94
 
