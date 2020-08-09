@@ -29,7 +29,7 @@ git clone https://github.com/qyjohn/DDBImportExport
 cd DDBImportExport
 ~~~~
 
-You need the following IAM permissions to use this utility:
+You need the following IAM permissions to use this DDBImportExport:
 
 - dynamodb:DescribeTable
 - dynamodb:Scan
