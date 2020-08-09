@@ -34,7 +34,9 @@ at 1 Hz to refill the LeakyBucket.
 """
 class QoSCounter(object):
     def __init__(self, value=0):
-        # RawValue because we don't need it to create a Lock:
+        """
+        RawValue because we don't need it to create a Lock:
+        """
         self.capacity   = multiprocessing.RawValue('i', value)
         self.refillRate = multiprocessing.RawValue('i', value)
         self.lock       = multiprocessing.Lock()
@@ -44,12 +46,13 @@ class QoSCounter(object):
             self.capacity.value -= value
 
     def refill(self):
+        """
+        Here we assume unlimit capacity for the LeakyBucket. The underlying assumption
+        is unused capacity in the previous second is counted towards burst capacity,
+        which can be used in subsequent API calls. 
+        """ 
         with self.lock:
             self.capacity.value += self.refillRate.value
-  #          if self.capacity.value < 0:
-  #              self.capacity.value += self.refillRate.value
-  #          else:
-  #              self.capacity.value = self.refillRate.value
 
     def value(self):
         with self.lock:
