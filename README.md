@@ -198,14 +198,15 @@ The following table shows the time needed to perform the export with DDBExport.
 | 4 | 192000 | i3.16xlarge | 64 | 488 GB | 8 x 1900 GB | 25 Gbps | 64 | S3 |
 | 5 | 192000 | i3en.24xlarge | 96 | 768 GB | 8 x 7500 | 100 Gbps | 64 | HD |
 | 6 | 192000 | i3en.24xlarge | 96 | 768 GB | 8 x 7500 | 100 Gbps | 64 | S3 |
-| 7 | 192000 | m5.24xlarge | 96 | 384 GB | N/A | 25 Gbps | 90 |  xxx |
+| 7 | 192000 | i3en.24xlarge | 96 | 768 GB | 8 x 7500 | 100 Gbps | 96 | HD |
+| 8 | 192000 | i3en.24xlarge | 96 | 768 GB | 8 x 7500 | 100 Gbps | 96 | S3 |
 
 As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" template to perform the same export. Data Pipeline launches an EMR cluster to do the work, and automatically adjust the number of core nodes to match the provisioned RCU on the table. By default, the m3.xlarge instance type is used, with up to 8 containers on each core node. The following table shows the time needed to perform the export with Data Pipeline.
 
-| ID | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Time |
+| ID | RCU | Instance | vCPU | Memory | Core Nodes | Containers | Output |
 |---|---|---|---|---|---|---|---|
-| 8 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | 136 minutes |
-| 9 | 192000 | m3.xlarge | 4 | 15 GB | 160 |  1277 | 84 minutes |
+| 9 | 112000 | m3.xlarge | 4 | 15 GB | 94 | 749 | S3 |
+| 10 | 192000 | m3.xlarge | 4 | 15 GB | 160 |  1277 | S3 |
 
 Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does include the cost for the provisioned read capacity units ($0.00013 per RCU per hour) on the DynamoDB table, which is not shown here.
 
