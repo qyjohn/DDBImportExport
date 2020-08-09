@@ -126,7 +126,7 @@ python GenerateTestData.py -c 1000000 -f test.json
 python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 ~~~~
 
-## Performance and Cost Considerations
+## Performance and Cost Considerations for DDBExport
 
 When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.8 TB data. There are over 37 million items in the table, with each item being around 200 KB. The following tests are done on i3.8xlarge, i3.16xlarge and i3en.24xlarge with Amazon Linux 2. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
 
@@ -182,7 +182,7 @@ As a comparison, we use Data Pipeline with the "Export DynamoDB table to S3" tem
 | 9 | 112000 | m3.xlarge | 4 | 15 GB | 1 + 94 | 749 | S3 |
 | 10 | 192000 | m3.xlarge | 4 | 15 GB | 1 + 160 |  1277 | S3 |
 
-Now let's do a cost comparision on the above-mentioned approaches, using on-demand pricing in the us-east-1 region. The cost estimate does include the cost for the provisioned read capacity units ($0.00013 per RCU per hour) on the DynamoDB table, which is not shown here.
+The following table summarizes the execution time and execution cost for the above-described tests, using on-demand pricing in the us-east-1 region. 
 
 | ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
@@ -195,7 +195,7 @@ Now let's do a cost comparision on the above-mentioned approaches, using on-dema
 | 7 | $10.848 / hour | $24.96 / hour | - | - | - |
 | 8 | $10.848 / hour | $24.96 / hour | 192000 | 80 minutes | $67.94 |
 | 9 | $31.588 / hour | $14.56 / hour | 112000 | 136 minutes | $104.60 |
-| 10 | $53.53 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
+| 10 | $53.530 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
 
 It should be noted that in test 2, 4 and 6, a significant portion of the provisioned RCU is not used. With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations, both producing a significant pressure on the network. When the network is not fast enough, this alternative workload pattern slows down the export process. As shown in test 8, with sufficient network bandwidth and increased concurrency, it is possible to fully utilize 192000 provisioned RCU on a single node, even with output on S3. 
 
@@ -205,4 +205,8 @@ Comparing tests with output to S3 and tests with output to HD, tests with output
 - Reduce the provisioned RCU on the table.
 - Sync the exported data from HD to S3 with the [aws s3 sync](https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html) command.
 
-Comparing test 8 with test 10, DDBExport achieves x% speed-up and y% cost reduction, as compared to Data Pipeline. Also, Data Pipeline is a much more complicate solution, with multiple AWS services involved, and a large number of nodes in a cluster. DDBExport achieves this with a single command line on a single EC2 instance. 
+Comparing test 8 with test 10, DDBExport achieves x% speed-up and y% cost reduction, as compared to Data Pipeline. Also, Data Pipeline is a much more complicate solution, with multiple AWS services involved, and a large number of nodes in a cluster. DDBExport achieves this with a single command line on a single EC2 instance. As such, DDBExport is an ideal tool to export DynamoDB tables at TB scale, with both cost and deadline constraints. 
+
+## Performance and Cost Considerations for DDBImport
+
+To be added when the DDBImport module is improved to support both HD and S3 input source, as well as multiple input files.
