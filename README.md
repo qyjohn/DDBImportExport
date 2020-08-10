@@ -186,7 +186,7 @@ The following table summarizes the execution time and execution cost for the abo
 
 | ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
-| 1 | $2.496 / hour | $14.56 / hour | 72000 | - | - |
+| 1 | $2.496 / hour | $14.56 / hour | 72000 | 205 minutes | $58.27 |
 | 2 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94 |
 | 3 | $4.992 / hour | $24.96 / hour | 140000 | 107 minutes | $53.41 |
 | 4 | $4.992 / hour | $24.96 / hour | 100000 | 159 minutes | $79.37 |
