@@ -162,7 +162,7 @@ cd /data
 time python ~/DDBImportExport/DDBExport.py -r <region> -t <table> -p <processes> -c <capacity> -s 1024 -d <destination>
 ~~~~
 
-The following table summaries the tests peformed with DDBExport.
+The following table summaries the tests peformed with DDBExport. Here RCU refers to the provisioned RCU on the table, which is also used in the **-c** option for DDBExport.
 
 | ID | RCU | Instance | vCPU | Memory | SSD Disks | Network | Processes | Output |
 |---|---|---|---|---|---|---|---|---|
@@ -186,7 +186,7 @@ The following table summarizes the execution time and execution cost for the abo
 
 | ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
-| 1 | $2.496 / hour | $14.56 / hour | 74000 | Failed | N/A |
+| 1 | $2.496 / hour | $14.56 / hour | 72000 | - | - |
 | 2 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94 |
 | 3 | $4.992 / hour | $24.96 / hour | 140000 | 107 minutes | $53.41 |
 | 4 | $4.992 / hour | $24.96 / hour | 100000 | 159 minutes | $79.37 |
