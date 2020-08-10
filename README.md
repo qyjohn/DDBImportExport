@@ -192,7 +192,7 @@ The following table summarizes the execution time and execution cost for the abo
 | 4 | $4.992 / hour | $24.96 / hour | 100000 | 159 minutes | $79.37 |
 | 5 | $10.848 / hour | $24.96 / hour | 170000 | 96 minutes | $57.29 |
 | 6 | $10.848 / hour | $24.96 / hour | 140000 | 110 minutes | $65.64 |
-| 7 | $10.848 / hour | $24.96 / hour | 192000 | 83 minutes | 49.53 |
+| 7 | $10.848 / hour | $24.96 / hour | 192000 | 83 minutes | $49.53 |
 | 8 | $10.848 / hour | $24.96 / hour | 192000 | 80 minutes | $47.74 |
 | 9 | $31.588 / hour | $14.56 / hour | 112000 | 136 minutes | $104.60 |
 | 10 | $53.530 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
