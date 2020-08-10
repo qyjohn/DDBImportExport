@@ -104,9 +104,9 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
   """
   fileId = 0
   if isS3:
-    filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:04d}".format(fileId) + '.json'
+    filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
   else:
-    filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:04d}".format(fileId) + '.json'
+    filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
   out=open(filename, 'w')
   """
   Before doing any work, wait for QoSCounter to be greater than zero. 
@@ -161,9 +161,9 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
         else:
           s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
         os.remove(filename)
-        filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:04d}".format(fileId) + '.json'
+        filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
       else:
-        filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:04d}".format(fileId) + '.json'
+        filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
       out=open(filename, 'w')
       scans = 0
   """
@@ -223,7 +223,7 @@ for opt, arg in opts:
       if not destination.endswith('/'):
         destination = destination + '/'
       if not os.path.exists(destination):
-        os.mkdir(destination)
+        os.makedirs(destination)
   elif opt == '-p':
     process_count = int(arg)
   elif opt == '-c':

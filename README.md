@@ -186,20 +186,25 @@ The following table summarizes the execution time and execution cost for the abo
 
 | ID | EC2/EMR Price | RCU Price | Consumed RCU | Time | Cost |
 |---|---|---|---|---|---|
-| 1 | $2.496 / hour | $14.56 / hour | - | - | - |
+| 1 | $2.496 / hour | $14.56 / hour | N/A | Failed | N/A |
 | 2 | $2.496 / hour | $14.56 / hour | 62000 | 239 minutes | $67.94 |
-| 3 | $4.992 / hour | $24.96 / hour | - | - | - |
+| 3 | $4.992 / hour | $24.96 / hour | 140000 | 107 minutes | $53.41 |
 | 4 | $4.992 / hour | $24.96 / hour | 100000 | 159 minutes | $79.37 |
-| 5 | $10.848 / hour | $24.96 / hour | - | - | - |
+| 5 | $10.848 / hour | $24.96 / hour | 170000 | 96 minutes | $57.29 |
 | 6 | $10.848 / hour | $24.96 / hour | 140000 | 110 minutes | $65.64 |
 | 7 | $10.848 / hour | $24.96 / hour | - | - | - |
 | 8 | $10.848 / hour | $24.96 / hour | 192000 | 80 minutes | $47.74 |
 | 9 | $31.588 / hour | $14.56 / hour | 112000 | 136 minutes | $104.60 |
 | 10 | $53.530 / hour | $24.96 / hour | 192000 | 84 minutes | $109.89 |
 
-It should be noted that in test 2, 4 and 6, a significant portion of the provisioned RCU is not used. With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations, both producing a significant pressure on the network. When the network is not fast enough, this alternative workload pattern slows down the export process. As shown in test 8, with sufficient network bandwidth and increased concurrency, it is possible to fully utilize 192000 provisioned RCU on a single node, even with S3 as the output destination. 
+- Test 1 fails with insufficient storage capacity. The size of the DynamoDB table is 6.8 TB. The RAID0 device only has 6.6 TB available space.
+- Test 2 is successful. With S3 as the output destination, only 32 x 1024 MB = 32 GB storage space is required for the intermediate data.
+- Test 3 is successful. The RAID0 device offers 14 TB available space, which is sufficient to hold the data.
+- Test 4 takes more time than test 3. With S3 as the output destination, each sub-process alternates between DynamoDB Scan and S3 PutObject operations, both producing a significant pressure on the network. This alternative workload pattern slows down the export process.
+- The same behavior is observed in tests 5 and 6. Since i3en.24xlarge has much faster network (100 Gbps throughput), tests 5 and 6 achieve better performance as compared to tests 3 and 4, with the same number of sub-processes.
+- Tests 7 and 8 complete at the same time. With sufficient network bandwidth, disk I/O capacity, and concurrency, the provisioned RCU for the export now becomes the bottleneck. 
 
-Comparing tests with output to S3 and tests with output to HD, tests with output to HD achieve x% to y% speed-up. Considering the cost of the provisioned RCU is significant, if the RAID0 device is sufficient to hold all the exported data (the RAID0 device on i3en.24xlarge provides 55 TB storage), it would be more cost-effective to perform the export with a multi-step approach, as below:
+Comparing tests with output to S3 and tests with output to HD, tests with output to HD is usually faster (when network throughtput is the bottleneck). Considering the cost of the provisioned RCU is significant, if the RAID0 device is sufficient to hold all the exported data (the RAID0 device on i3en.24xlarge provides 55 TB storage), it would be more cost-effective to perform the export with a multi-step approach, as below:
 
 - Use DDBExport to export to HD.
 - Reduce the provisioned RCU on the table.
