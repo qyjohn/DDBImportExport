@@ -78,6 +78,8 @@ def decimal_default(obj):
         return float(obj)
     raise TypeError
    
+   
+
 """
 Each ddbExportWorker is a sub-process to Scan and export one of the segments. 
 The QoSCounter is used for QoS control.
@@ -134,7 +136,23 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
     """
     while counter.value() <= 0:
       time.sleep(1)
-    response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=response['LastEvaluatedKey'], ReturnConsumedCapacity='TOTAL')
+    """
+    Scan with application-level retry logic. This application-level retry is in 
+    addition to the automatic retries in boto3. After boto3 throws an exception 
+    to the application, the application first sleeps for some random seconds 
+    (less than 10), then try again.
+    """
+    total_retries = 3
+    retry_count   = 0
+    retry_needed  = True
+    if retry_count < total_retries and retry_needed:
+      try:
+        response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=response['LastEvaluatedKey'], ReturnConsumedCapacity='TOTAL')
+        retry_needed = False
+      except Exception as e:
+        retry_count = retry_count + 1
+        print(str(e))
+        time.sleep(random.randrange(10))
     """
     Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
     consume() method.
@@ -154,14 +172,30 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
       fileId = fileId + 1
       if isS3:
         """
-        Stage this file to S3, delete it from local disk, then create the next filename
+        Stage this file to S3, delete it from local disk, then create the next filename.
         """
-        if s3Prefix is None:
-          s3.meta.client.upload_file(filename, s3Bucket, filename)
-        else:
-          s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
-        os.remove(filename)
-        filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
+        total_retries = 3
+        retry_count   = 0
+        retry_needed  = True
+        if retry_count < total_retries and retry_needed:
+          try:
+            if s3Prefix is None:
+              s3.meta.client.upload_file(filename, s3Bucket, filename)
+            else:
+              s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
+            os.remove(filename)
+            filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
+            retry_needed = False
+          except Exception as e:
+            retry_count = retry_count + 1
+            print(str(e))
+            time.sleep(random.randrange(10))
+#        if s3Prefix is None:
+#          s3.meta.client.upload_file(filename, s3Bucket, filename)
+#        else:
+#          s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
+#        os.remove(filename)
+#        filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
       else:
         filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
       out=open(filename, 'w')
