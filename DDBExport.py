@@ -110,8 +110,8 @@ def ddbScan(worker, ddb_table, total_segments, workerId, last_evaluated_key, cou
     except Exception as e:
       ddb_retry_count = ddb_retry_count + 1
       print(worker + ': ' + str(e))
-      print(worker + ': DynamoDB Scan attempt # failed.')
-      time.sleep(random.randrange(10))
+      print(worker + ': DynamoDB Scan attempt ' + str(ddb_retry_count) + ' failed.')
+      time.sleep(ddb_retry_count * random.randrange(10))
   if ddb_retry_count >= ddb_max_retries and ddb_retry_needed:
     """
     If the application-level retries also fail, we have tried our best. It is time to
@@ -152,7 +152,7 @@ Each ddbExportWorker is a sub-process to Scan and export one of the segments.
 The QoSCounter is used for QoS control.
 """   
 def ddbExportWorker(workerId, region, table, total_segments, counter, destination, size, isS3, s3Bucket, s3Prefix):
-  worker = "Worker_" + str(workerId)
+  worker = "Worker_" + "{:04d}".format(workerId)
   """
   We start with a random sleep. This is to avoid all sub-processes performing disk 
   flush or S3 upload at exactly the same time. With this approach, we kind of 

@@ -44,19 +44,21 @@ DDBImport is a python script to import from JSON file into DynamoDB table. The f
 |---|---|
 | -r | The name of the AWS region, such as us-east-1. |
 | -t | The name of the DynamoDB table. |
-| -s | The name of the source file. |
+| -s | The name of the source file / folder. |
 | -p | The number of sub-processes (threads) to use. |
+| -c | The maximum amount of write capacity units (WCU) to use. |
 
 Usage:
 
 ~~~~
-python DDBImport.py -r <region_name> -t <table_name> -s <source_file> -p <process_count>
+python DDBImport.py -r <region> -t <table> -s <source> -p <processes> -c <capacity>
 ~~~~
 
 Example:
 
 ~~~~
-python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
+python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8 -c 1000
+python DDBImport.py -r us-east-1 -t TestTable -s data/ -p 8 -c 1000
 ~~~~
   
 The script launches multiple processes to do the work. The processes poll from a common queue for data to write. When the queue is empty, the processes continues to poll the queue for another 60 seconds to make sure it does not miss anything. 
@@ -66,6 +68,8 @@ It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vC
 Tested on an EC2 instance with the c3.8xlarge instance type. The data set contains 10,000,000 items, with each item being approximately 170 bytes. The size of the JSON file is 1.7 GB. The DynamoDB table has 40,000 provisioned WCU. Perform the import with 32 threads, and the import is completed in 7 minutes. The peak consumed WCU is approximately 32,000 (average value over a 1-minute period).
 
 It is recommended that you use either a fixed provisioned WCU or an on-demand table for the import. The import creates a short burst traffic, which is not friendly for the DynamoDB auto scaling feature. If you use provisioned capacity, remember that each process requires approximately 1000 WCU. If you use 8 processes to do the import, you need 8000 provisioned WCU on the table.
+
+If the data to be imported is large, it is recommended that the data be split into multiple JSON files (in a folder) instead of a single JSON file. This avoids fitting all the data into memory at once. This can be done with the **split** command in Linux. 
 
 ## DDBExport
 
@@ -207,6 +211,17 @@ The following table summarizes the execution time and execution cost for the abo
 
 Comparing test 8 with test 10, DDBExport achieves some slight speed-up (5%) with significant cost reduction (56%), as compared to Data Pipeline. Also, Data Pipeline is a much more complicate solution, with multiple AWS services involved, and a large number of nodes in a cluster. DDBExport achieves this with a single command line on a single EC2 instance. As such, DDBExport is capable of exporting DynamoDB tables at TB scale, meeting both cost and deadline constraints. 
 
+DDBExport has been tested with a DynamoDB table with 48 TB data (with 266 million items). We run DDBExport on i3en.24xlarge with 96 sub-processes. The provisioned RCU on the DynamoDB is 192000. The export is completed in 532 minutes. 
+
 ## Performance and Cost Considerations for DDBImport
 
 To be added when the DDBImport module is improved to support both HD and S3 input source, as well as multiple input files. See TODO.md for details.
+
+## Additional Notes
+
+For a long running DDBExport with a high level of concurrency, it is normal to see the following error message. This occurs when the temporary credential obtained from the IAM role expires. DDBExport will automatically obtain new temporary credential from the IAM role. With a high level of concurrency, the credential renewal might fail in some sub-processes. DDBExport has a retry mechanism to make the renewal eventually successful.
+
+~~~~
+Worker_0063: Error when retrieving credentials from iam-role: Credential refresh failed, response did not contain: access_key, secret_key, token, expiry_time
+Worker_0063: DynamoDB Scan attempt 1 failed.
+~~~~
