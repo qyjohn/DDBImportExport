@@ -34,6 +34,8 @@ You need the following IAM permissions to use this DDBImportExport:
 - dynamodb:DescribeTable
 - dynamodb:Scan
 - dynamodb:BatchWriteItem
+- s3:ListObjects
+- s3:GetObject
 - s3:PutObject
 
 ## DDBImport
