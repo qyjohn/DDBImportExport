@@ -78,13 +78,78 @@ def decimal_default(obj):
         return float(obj)
     raise TypeError
    
+"""
+Perform a DynamoDB Scan, with application -level retries. The application-level retries are
+in addition to the automatic retries in boto3.
+"""
+def ddbScan(worker, ddb_table, total_segments, workerId, last_evaluated_key, counter):
+  ddb_max_retries  = 3
+  ddb_retry_count  = 0
+  ddb_retry_needed = True
+  """
+  Before doing any work, wait for QoSCounter to be greater than zero. 
+  """
+  while counter.value() <= 0:
+    time.sleep(1)
+  """
+  The QoSCounter is greater than 0. Perform the Scan 
+  """
+  while ddb_retry_count < ddb_max_retries and ddb_retry_needed:
+    try:
+      response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=last_evaluated_key, ReturnConsumedCapacity='TOTAL')
+      """
+      Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
+      consume() method.
+      """
+      counter.consume(int(response['ConsumedCapacity']['CapacityUnits']))
+      ddb_retry_needed = False
+      return response
+    except Exception as e:
+      ddb_retry_count = ddb_retry_count + 1
+      print(worker + ': ' + str(e))
+      print(worker + ': DynamoDB Scan attempt # failed.')
+      time.sleep(random.randrange(10))
+  if ddb_retry_count >= ddb_max_retries and ddb_retry_needed:
+    """
+    If the application-level retries also fail, we have tried our best. It is time to
+    give up.
+    """
+    print(worker + ': ' + str(ddb_max_retries) + ' DynamoDB Scan attempts failed.')
+    print(worker + ': Killing DDBExport due to retry limits exceeded.')
+    sys.exit()
    
+"""
+Stage a file to S3, with application -level retries. The application-level retries are
+in addition to the automatic retries in boto3.
+"""
+def s3Upload(worker, s3, filename, s3Bucket, s3Key):
+  s3_max_retries  = 3
+  s3_retry_count  = 0
+  s3_retry_needed = True
+  while s3_retry_count < s3_max_retries and s3_retry_needed:
+    try:
+      s3.meta.client.upload_file(filename, s3Bucket, s3Key)
+      s3_retry_needed = False
+    except Exception as e:
+      s3_retry_count = s3_retry_count + 1
+      print(worker + ': ' + str(e))
+      print(worker + ': S3 upload attempt #' + str(s3_retry_count) + ' failed for ' + filename)
+      time.sleep(random.randrange(10))
+  if s3_retry_count >= s3_max_retries and s3_retry_needed:
+    """
+    If the application-level retries also fail, we have tried our best. It is time to
+    give up.
+    """
+    print(worker + ': ' + str(s3_max_retries) + ' S3 upload attempts failed for ' + filename)
+    print(worker + ': Killing DDBExport due to retry limits exceeded.')
+    sys.exit()
 
 """
 Each ddbExportWorker is a sub-process to Scan and export one of the segments. 
 The QoSCounter is used for QoS control.
 """   
 def ddbExportWorker(workerId, region, table, total_segments, counter, destination, size, isS3, s3Bucket, s3Prefix):
+  worker = "Worker_" + str(workerId)
   """
   We start with a random sleep. This is to avoid all sub-processes performing disk 
   flush or S3 upload at exactly the same time. With this approach, we kind of 
@@ -110,17 +175,7 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
   else:
     filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
   out=open(filename, 'w')
-  """
-  Before doing any work, wait for QoSCounter to be greater than zero. 
-  """
-  while counter.value() <= 0:
-    time.sleep(1)
-  response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ReturnConsumedCapacity='TOTAL')  
-  """
-  Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
-  consume() method.
-  """
-  counter.consume(int(response['ConsumedCapacity']['CapacityUnits']))
+  response = ddbScan(worker, ddb_table, total_segments, workerId, None, counter)
   """
   Dump the items into the output file, one item per line. 
   """
@@ -131,33 +186,7 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
   Keep on scanning the segment until the end of the segment. 
   """
   while 'LastEvaluatedKey' in response:
-    """
-    Before doing any work, wait for QoSCounter to be greater than zero. 
-    """
-    while counter.value() <= 0:
-      time.sleep(1)
-    """
-    Scan with application-level retry logic. This application-level retry is in 
-    addition to the automatic retries in boto3. After boto3 throws an exception 
-    to the application, the application first sleeps for some random seconds 
-    (less than 10), then try again.
-    """
-    total_retries = 3
-    retry_count   = 0
-    retry_needed  = True
-    if retry_count < total_retries and retry_needed:
-      try:
-        response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=response['LastEvaluatedKey'], ReturnConsumedCapacity='TOTAL')
-        retry_needed = False
-      except Exception as e:
-        retry_count = retry_count + 1
-        print(str(e))
-        time.sleep(random.randrange(10))
-    """
-    Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
-    consume() method.
-    """
-    counter.consume(int(response['ConsumedCapacity']['CapacityUnits']))
+    response = ddbScan(worker, ddb_table, total_segments, workerId, response['LastEvaluatedKey'], counter)
     """
     Dump the items into the output file, one item per line. 
     """
@@ -174,28 +203,12 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
         """
         Stage this file to S3, delete it from local disk, then create the next filename.
         """
-        total_retries = 3
-        retry_count   = 0
-        retry_needed  = True
-        if retry_count < total_retries and retry_needed:
-          try:
-            if s3Prefix is None:
-              s3.meta.client.upload_file(filename, s3Bucket, filename)
-            else:
-              s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
-            os.remove(filename)
-            filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
-            retry_needed = False
-          except Exception as e:
-            retry_count = retry_count + 1
-            print(str(e))
-            time.sleep(random.randrange(10))
-#        if s3Prefix is None:
-#          s3.meta.client.upload_file(filename, s3Bucket, filename)
-#        else:
-#          s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
-#        os.remove(filename)
-#        filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
+        if s3Prefix is None:
+          s3Upload(worker, s3, filename, s3Bucket, filename)
+        else:
+          s3Upload(worker, s3, filename, s3Bucket, s3Prefix + filename)
+        os.remove(filename)
+        filename = str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
       else:
         filename = destination + str(table) + '-' + "{:04d}".format(workerId) + '-' + "{:05d}".format(fileId) + '.json'
       out=open(filename, 'w')
@@ -207,9 +220,9 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
   out.close()
   if isS3:
     if s3Prefix is None:
-      s3.meta.client.upload_file(filename, s3Bucket, filename)
+      s3Upload(worker, s3, filename, s3Bucket, filename)
     else:
-      s3.meta.client.upload_file(filename, s3Bucket, s3Prefix + filename)
+      s3Upload(worker, s3, filename, s3Bucket, s3Prefix + filename)
     os.remove(filename)
 
 
