@@ -96,7 +96,10 @@ def ddbScan(worker, ddb_table, total_segments, workerId, last_evaluated_key, cou
   """
   while ddb_retry_count < ddb_max_retries and ddb_retry_needed:
     try:
-      response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=last_evaluated_key, ReturnConsumedCapacity='TOTAL')
+      if last_evaluated_key is None:
+        response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ReturnConsumedCapacity='TOTAL')
+      else:
+        response = ddb_table.scan(TotalSegments=total_segments, Segment=workerId, ExclusiveStartKey=last_evaluated_key, ReturnConsumedCapacity='TOTAL')
       """
       Update the QoSCounter by deducting the consumed RCU from the LeakyBucket, with the 
       consume() method.
