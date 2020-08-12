@@ -71,7 +71,30 @@ Tested on an EC2 instance with the c3.8xlarge instance type. The data set contai
 
 It is recommended that you use either a fixed provisioned WCU or an on-demand table for the import. The import creates a short burst traffic, which is not friendly for the DynamoDB auto scaling feature. If you use provisioned capacity, remember that each process requires approximately 1000 WCU. If you use 8 processes to do the import, you need 8000 provisioned WCU on the table.
 
-If the data to be imported is large, it is recommended that the data be split into multiple JSON files (in a folder) instead of a single JSON file. This avoids fitting all the data into memory at once. This can be done with the **split** command in Linux. 
+If the data to be imported is large, it is recommended that the data be split into multiple JSON files (in a folder) instead of a single JSON file. This avoids fitting all the data into memory at once. This can be done with the **split** command in Linux. Below is an example on how to achieve this.
+
+~~~~
+$ ls -l *.json
+-rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
+
+$ more test.json | wc -l
+1000000
+
+$ split -dl 100000 --additional-suffix=.json test.json test                                                                  
+
+$ ls -l *.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748382 Aug 12 09:21 test00.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748294 Aug 12 09:21 test01.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748330 Aug 12 09:21 test02.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748069 Aug 12 09:21 test03.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748405 Aug 12 09:21 test04.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748386 Aug 12 09:21 test05.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748401 Aug 12 09:21 test06.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748051 Aug 12 09:21 test07.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748289 Aug 12 09:21 test08.json
+-rw-rw-r-- 1 ec2-user ec2-user  16747952 Aug 12 09:21 test09.json
+-rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
+~~~~
 
 ## DDBExport
 

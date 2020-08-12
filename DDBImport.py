@@ -31,8 +31,6 @@ import time
 import boto3
 import math
 import multiprocessing
-import queue
-#from multiprocessing import Queue
 import getopt
 from glob import glob
 
@@ -77,11 +75,31 @@ def qosRefillThread(counter):
       counter.refill()
       time.sleep(1)
       
+
+"""
+Write one item.
+"""
+def writeItem(batch, line, counter):
+  """
+  Before doing any work, wait for QoSCounter to be greater than zero. 
+  """
+  while counter.value() <= 0:
+    time.sleep(1)
+  size = len(line)
+  item = json.loads(line)
+  batch.put_item(Item=item)
+  """
+  Consume (size/1024) WCU from the counter. This is only an estimation.
+  """
+  counter.consume(math.ceil(size/1024))
+
+
 """
 Each ddbImportWorker is a sub-process to read data and write to DynamoDB. 
 The QoSCounter is used for QoS control.
 """        
-def ddbImportWorker(id, region, table, queue, source_type, counter):
+def ddbImportWorker(workerId, region, table, queue, queue_type, counter):
+  worker = "Worker_" + "{:04d}".format(workerId)
   """
   We create one DynamoDB client per worker process. This is because boto3 session 
   is not thread safe. 
@@ -90,73 +108,77 @@ def ddbImportWorker(id, region, table, queue, source_type, counter):
   dynamodb = session.resource('dynamodb', region_name = region)
   ddb_table   = dynamodb.Table(table)
   with ddb_table.batch_writer() as batch:
-    if source_type == 'DIR':
+    if queue_type == 'FILE':
       """
-      When the source_type is DIR, each record in the queue is a filename.
+      When the source_type is FILE, each record in the queue is a filename.
       """
       has_more_work = True
       while has_more_work:
         try:
-          file = queue.get(timeout=3)
+          file = queue.get(timeout=2)
+          print(worker + ' is importing ' + file)
           with open(file) as f:
             for line in f:
-              """
-              Before doing any work, wait for QoSCounter to be greater than zero. 
-              """
-              while counter.value() <= 0:
-                time.sleep(1)
-              size = len(line)
-              item = json.loads(line)
-              batch.put_item(Item=item)
-              """
-              Consume (size/1024) WCU from the counter. This is only an estimation.
-              """
-              counter.consume(math.ceil(size/1024))
+              writeItem(batch, line, counter)
         except Exception as e:
-          has_more_work = False  
           print(str(e))
+          has_more_work = False  
           sys.exit()
-    elif source_type == 'FILE':
+    elif queue_type == 'LINE':
       """
-      When the source_type is FILE, each record in the queue is an item.
+      When the queue_type is LINE, each record in the queue is an item.
       """
       has_more_work = True
       while has_more_work:
         try:
-          """
-          Before doing any work, wait for QoSCounter to be greater than zero. 
-          """
-          while counter.value() <= 0:
-            time.sleep(1)
-          line = queue.get(timeout=3)
-          size = len(line)
-          item = json.loads(line)
-          batch.put_item(Item=item)
-          """
-          Consume (size/1024) WCU from the counter. This only an estimation.
-          """
-          counter.consume(math.ceil(size/1024))
+          line = queue.get(timeout=2)
+          writeItem(batch, line, counter)
         except Exception as e:
-          has_more_work = False  
           print(str(e))
+          has_more_work = False  
           sys.exit()
-  """
-  Keep on polling the queue for items to work on. 
-  Use BatchWriteItem to write items in batches into the DynamoDB table. In boto3, 
-  the DynamoDB.Table.batch_writer() automatically handles buffering and sending 
-  items in batches, and automatically handles any unprocessed items and resends 
-  them when needed. 
-  with ddb_table.batch_writer() as batch:
-    work = 1
-    while work == 1:
-      try:
-        item = queue.get(timeout=60)
-        batch.put_item(Item=item)
-      except Queue.Empty:
-        work = 0  
-  """
+
+"""
+Retrieve all JSON files under the S3 prefix.
+"""
+def listS3Objects(s3Bucket, s3Prefix):
+  results = []
+  try:
+    """
+    Create S3 client to ListObjects
+    """
+    client = boto3.client('s3')
+    response = client.list_objects_v2(Bucket=s3Bucket, Prefix=s3Prefix, MaxKeys=2)
+    if 'Contents' in response:
+      for item in response['Contents']:
+        if item['Key'].endswith('json'):
+          results.append(item['Key'])
+    while response['IsTruncated']:
+      response = client.list_objects_v2(Bucket=s3Bucket, Prefix=s3Prefix, MaxKeys=2, ContinuationToken=response['NextContinuationToken'])
+      if 'Contents' in response:
+        for item in response['Contents']:
+          if item['Key'].endswith('json'):
+            results.append(item['Key'])
+  except Exception as e:
+    print(str(e))
+    sys.exit()
+  return results
 
 
+"""
+Retrieve all JSON files under the local path
+"""
+def listLocalFiles(source):
+  files = []
+  if os.path.exists(source):
+    if os.path.isfile(source):
+      if source.endswith('.json'):
+        files.append(source)
+    elif os.path.isdir(source):
+      files = [y for x in os.walk(os.path.abspath(source)) for y in glob(os.path.join(x[0], '*.json'))]
+  return files  
+  
+  
 """
 At the beginning, nothing is defined. Enforce user-supplied values.
 """
@@ -190,42 +212,86 @@ if all([region, table, source, process_count, wcu]) == False:
   print('DDBImport.py -r <region_name> -t <table_name> -s <source> -p <processes> -c capacity')
 else:
   """
-  Check if the input source is a file or a folder.
+  Make sure the DynamoDB table exists and has the desired level of WCU. 
   """
-  source_type = 'DIR'
-  if os.path.exists(source):
-    if os.path.isfile(source):
-      source_type = 'FILE'
-      if not source.endswith('.json'):
-        print('Input source ' + source + ' does not have the .json filename extension.')
-        sys.exit()
-    elif os.path.isdir(source):
-      source_type = 'DIR'
-    else:
-      print('Input source ' + source + ' is not valid.')
+  try:
+    session = boto3.session.Session()
+    client  = session.resource('dynamodb', region_name = region)
+    response = client.Table(table)
+    print('The DynamoDB table is ' + response.table_status + '.')
+    if response.table_status != 'ACTIVE':
+      print('The DynamoDB table must be in ACTIVE state to run DDBExport.')
       sys.exit()
-  else:
-    print('Input source ' + source + ' does not exist.')
+    if response.billing_mode_summary is None:
+      print('The DynamoDB table has provisioned WCU: ' + str(response.provisioned_throughput['WriteCapacityUnits']))
+      if response.provisioned_throughput['WriteCapacityUnits'] < wcu:
+        print('The provisioned WCU is smaller than the desired capacity (' + str(wcu) + ') for DDBImport.')
+        sys.exit()
+    else:
+      print('The DynamoDB table is using on-demand capacity.')
+  except Exception as e:
+    print(str(e))
     sys.exit()
   """
   Create a queue to distribute the work.
   """
   queue = multiprocessing.Queue()
-  if source_type == 'DIR':
+  """
+  Check if the input source is an S3 path, a file, or a folder.
+  """
+  if source.startswith('s3://'):
     """
-    Push all the JSON files under the folder into the Queue.
+    Remove s3:// from S3 URI and identify S3 bucket and prefix
     """
-    files = [y for x in os.walk(os.path.abspath(source)) for y in glob(os.path.join(x[0], '*.json'))]
-    for file in files:
-      queue.put(file)
+    source = source[5:]
+    pos = source.find('/')
+    s3Bucket = source[:pos]
+    s3Prefix = source[pos+1:]
+    objects = listS3Objects(s3Bucket, s3Prefix)
+    if len(objects) == 0:
+      """
+      There is no S3 object with .json filename
+      """
+      print('Can not find any .json file in the S3 path specified.')
+      sys.exit()
+    elif len(objects) == 1:
+      """
+      There is only one S3 object with .json filename, need to write to the queue line by line
+      """
+      queue_type = 'LINE'
+    else:
+      """
+      There are multiple S3 object with .json filename, need to write object key names to the queue
+      """
+      queue_type = 'S3Object'
+      for obj in objects:
+        queue.put(obj)
   else:
     """
-    Open the data file (JSON file) for read. Push all items in the data file into the
-    queue. Each worker process will poll the queue to do the work.
+    Retrieve all JSON files in the source location
     """
-    with open(source) as f:
-      for line in f:
-        queue.put(line)
+    files = listLocalFiles(source)
+    if len(files) == 0:
+      """
+      There is no .json file in the source location
+      """
+      print('Can not find any .json file in the source location.')
+      sys.exit()
+    elif len(files) == 1:
+      """
+      There is only one .json file
+      """
+      queue_type = 'LINE'
+      with open(source) as f:
+        for line in f:
+          queue.put(line)
+    else:
+      """
+      There are multiple .json files, need to write filenames to the queue
+      """
+      queue_type = 'FILE'
+      for file in files:
+        queue.put(file)
   """
   Setup the QoSCounter. 
   """
@@ -238,7 +304,7 @@ else:
   """
   workers = []
   for i in range(process_count):
-    p = multiprocessing.Process(target=ddbImportWorker, args=(i, region, table, queue, source_type, counter))
+    p = multiprocessing.Process(target=ddbImportWorker, args=(i, region, table, queue, queue_type, counter))
     workers.append(p)
     p.start()
   """
