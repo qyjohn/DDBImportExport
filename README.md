@@ -241,6 +241,8 @@ $ ls -l *.json
 -rw-rw-r-- 1 ec2-user ec2-user  16748289 Aug 12 09:21 test08.json
 -rw-rw-r-- 1 ec2-user ec2-user  16747952 Aug 12 09:21 test09.json
 -rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
+
+$ rm test.json
 ~~~~
 
 ## Additional Notes
