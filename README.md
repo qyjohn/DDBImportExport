@@ -164,7 +164,7 @@ Example:
 
 ~~~~
 python GenerateTestData.py -c 1000000 -f test.json
-python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
+python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 20000 -s test.json 
 ~~~~
 
 
