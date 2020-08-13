@@ -33,6 +33,7 @@ import math
 import multiprocessing
 import getopt
 from glob import glob
+from datetime import datetime
 
 """
 QoSCounter is a LeakyBucket QoS algorithm. Each sub-process can not do any Scan 
@@ -93,36 +94,51 @@ def writeItem(batch, line, counter):
   """
   counter.consume(math.ceil(size/1024))
 
+"""
+Get the string representation of the current day and time.
+"""   
+def getTime():
+  now = datetime.now()
+  current_time = now.strftime("%Y-%m-%dT%H:%M:%S")
+  return current_time
+
+"""
+Print out message with the current day and time.
+"""   
+def message(msg):
+  print(getTime() + ' ' + msg)
 
 """
 Each ddbImportWorker is a sub-process to read data and write to DynamoDB. 
 The QoSCounter is used for QoS control.
 """        
-def ddbImportWorker(workerId, region, table, queue, queue_type, counter, s3Bucket):
+def ddbImportWorker(workerId, ddbRegion, table, queue, queue_type, counter, s3Region, s3Bucket):
   worker = "Worker_" + "{:04d}".format(workerId)
   """
   We create one DynamoDB client per worker process. This is because boto3 session 
   is not thread safe. 
   """
   session  = boto3.session.Session()
-  dynamodb = session.resource('dynamodb', region_name = region)
+  dynamodb = session.resource('dynamodb', region_name = ddbRegion)
   ddb_table   = dynamodb.Table(table)
   with ddb_table.batch_writer() as batch:
     if queue_type == 'S3Object':
       """
       When the source_type is S3Object, each record in the queue is an S3 object.
       """
-      s3 = boto3.resource('s3', region_name = region)
+      s3 = boto3.resource('s3', region_name = s3Region)
       has_more_work = True
       while has_more_work:
         try:
-          key = queue.get(timeout=2)
-          print(worker + ' is importing s3://' + s3Bucket + '/' + key)
+          key = queue.get(timeout=1)
+          message(worker + ' is importing s3://' + s3Bucket + '/' + key)
           obj = s3.Object(s3Bucket, key)
           for line in obj.get()['Body']._raw_stream:
             writeItem(batch, line, counter)
         except Exception as e:
-          print(str(e))
+          message(worker + ' ' + type(e).__name__)
+          if type(e).__name__ is not 'Empty':
+            message(worker + ' ' + str(e))
           has_more_work = False  
           sys.exit()
     if queue_type == 'FILE':
@@ -132,13 +148,15 @@ def ddbImportWorker(workerId, region, table, queue, queue_type, counter, s3Bucke
       has_more_work = True
       while has_more_work:
         try:
-          file = queue.get(timeout=2)
-          print(worker + ' is importing ' + file)
+          file = queue.get(timeout=1)
+          message(worker + ' is importing ' + file)
           with open(file) as f:
             for line in f:
               writeItem(batch, line, counter)
         except Exception as e:
-          print(str(e))
+          message(worker + ' ' + type(e).__name__)
+          if type(e).__name__ is not 'Empty':
+            message(worker + ' ' + str(e))
           has_more_work = False  
           sys.exit()
     elif queue_type == 'LINE':
@@ -151,20 +169,37 @@ def ddbImportWorker(workerId, region, table, queue, queue_type, counter, s3Bucke
           line = queue.get(timeout=2)
           writeItem(batch, line, counter)
         except Exception as e:
-          print(str(e))
+          message(worker + ' ' + type(e).__name__)
+          if type(e).__name__ is not 'Empty':
+            message(worker + ' ' + str(e))
           has_more_work = False  
           sys.exit()
 
 """
+Retrieve the AWS region for the S3 bucket.
+"""
+def getBucketRegion(bucket):
+  client = boto3.client('s3')
+  try:
+    location = client.get_bucket_location(Bucket=bucket)
+    if location['LocationConstraint']:
+      return location['LocationConstraint']
+    else:
+      return 'us-east-1'
+  except Exception as e:
+    print(bucket + '\t' + str(e))
+    return 'us-east-1'
+        
+"""
 Retrieve all JSON files under the S3 prefix.
 """
-def listS3Objects(s3Bucket, s3Prefix):
+def listS3Objects(s3Region, s3Bucket, s3Prefix):
   results = []
   try:
     """
     Create S3 client to ListObjects
     """
-    client = boto3.client('s3')
+    client = boto3.client('s3', region_name=s3Region)
     response = client.list_objects_v2(Bucket=s3Bucket, Prefix=s3Prefix, MaxKeys=2)
     if 'Contents' in response:
       for item in response['Contents']:
@@ -177,7 +212,7 @@ def listS3Objects(s3Bucket, s3Prefix):
           if item['Key'].endswith('json'):
             results.append(item['Key'])
   except Exception as e:
-    print(str(e))
+    message(str(e))
     sys.exit()
   return results
 
@@ -205,6 +240,7 @@ source = None
 wcu    = None
 process_count = None
 s3Bucket = None
+s3Region = 'us-east-1'
 """
 Obtain the AWS region, table name, source file, and the number of worker processes
 from command line.
@@ -236,19 +272,19 @@ else:
     session = boto3.session.Session()
     client  = session.resource('dynamodb', region_name = region)
     response = client.Table(table)
-    print('The DynamoDB table is ' + response.table_status + '.')
+    message('The DynamoDB table is ' + response.table_status + '.')
     if response.table_status != 'ACTIVE':
-      print('The DynamoDB table must be in ACTIVE state to run DDBExport.')
+      message('The DynamoDB table must be in ACTIVE state to run DDBExport.')
       sys.exit()
     if response.billing_mode_summary is None:
-      print('The DynamoDB table has provisioned WCU: ' + str(response.provisioned_throughput['WriteCapacityUnits']))
+      message('The DynamoDB table has provisioned WCU: ' + str(response.provisioned_throughput['WriteCapacityUnits']))
       if response.provisioned_throughput['WriteCapacityUnits'] < wcu:
-        print('The provisioned WCU is smaller than the desired capacity (' + str(wcu) + ') for DDBImport.')
+        message('The provisioned WCU is smaller than the desired capacity (' + str(wcu) + ') for DDBImport.')
         sys.exit()
     else:
-      print('The DynamoDB table is using on-demand capacity.')
+      message('The DynamoDB table is using on-demand capacity.')
   except Exception as e:
-    print(str(e))
+    message(str(e))
     sys.exit()
   """
   Create a queue to distribute the work.
@@ -265,19 +301,20 @@ else:
     pos = source.find('/')
     s3Bucket = source[:pos]
     s3Prefix = source[pos+1:]
-    objects = listS3Objects(s3Bucket, s3Prefix)
+    s3Region = getBucketRegion(s3Bucket)
+    objects = listS3Objects(s3Region, s3Bucket, s3Prefix)
     if len(objects) == 0:
       """
       There is no S3 object with .json filename
       """
-      print('Can not find any .json file in the S3 path specified.')
+      message('Can not find any .json file in the S3 path specified.')
       sys.exit()
     elif len(objects) == 1:
       """
       There is only one S3 object with .json filename, need to write to the queue line by line
       """
       queue_type = 'LINE'
-      s3 = boto3.resource('s3', region_name = region)
+      s3 = boto3.resource('s3', region_name = s3Region)
       obj = s3.Object(s3Bucket, objects[0])
       for line in obj.get()['Body']._raw_stream:
         queue.put(line)
@@ -297,7 +334,7 @@ else:
       """
       There is no .json file in the source location
       """
-      print('Can not find any .json file in the source location.')
+      message('Can not find any .json file in the source location.')
       sys.exit()
     elif len(files) == 1:
       """
@@ -326,7 +363,7 @@ else:
   """
   workers = []
   for i in range(process_count):
-    p = multiprocessing.Process(target=ddbImportWorker, args=(i, region, table, queue, queue_type, counter, s3Bucket))
+    p = multiprocessing.Process(target=ddbImportWorker, args=(i, region, table, queue, queue_type, counter, s3Region, s3Bucket))
     workers.append(p)
     p.start()
   """
@@ -335,4 +372,4 @@ else:
   for p in workers:
     p.join()
   qos.terminate()
-  print("All done.")
+  message("All done.")

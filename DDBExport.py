@@ -25,6 +25,7 @@ import getopt
 import decimal
 import os
 import random
+from datetime import datetime
 
 """
 QoSCounter is a LeakyBucket QoS algorithm. Each sub-process can not do any Scan 
@@ -109,16 +110,16 @@ def ddbScan(worker, ddb_table, total_segments, workerId, last_evaluated_key, cou
       return response
     except Exception as e:
       ddb_retry_count = ddb_retry_count + 1
-      print(worker + ': ' + str(e))
-      print(worker + ': DynamoDB Scan attempt ' + str(ddb_retry_count) + ' failed.')
+      message(worker + ': ' + str(e))
+      message(worker + ': DynamoDB Scan attempt ' + str(ddb_retry_count) + ' failed.')
       time.sleep(ddb_retry_count * random.randrange(10))
   if ddb_retry_count >= ddb_max_retries and ddb_retry_needed:
     """
     If the application-level retries also fail, we have tried our best. It is time to
     give up.
     """
-    print(worker + ': ' + str(ddb_max_retries) + ' DynamoDB Scan attempts failed.')
-    print(worker + ': Killing DDBExport due to retry limits exceeded.')
+    message(worker + ': ' + str(ddb_max_retries) + ' DynamoDB Scan attempts failed.')
+    message(worker + ': Killing DDBExport due to retry limits exceeded.')
     sys.exit()
    
 """
@@ -135,23 +136,54 @@ def s3Upload(worker, s3, filename, s3Bucket, s3Key):
       s3_retry_needed = False
     except Exception as e:
       s3_retry_count = s3_retry_count + 1
-      print(worker + ': ' + str(e))
-      print(worker + ': S3 upload attempt #' + str(s3_retry_count) + ' failed for ' + filename)
+      message(worker + ': ' + str(e))
+      message(worker + ': S3 upload attempt #' + str(s3_retry_count) + ' failed for ' + filename)
       time.sleep(random.randrange(10))
   if s3_retry_count >= s3_max_retries and s3_retry_needed:
     """
     If the application-level retries also fail, we have tried our best. It is time to
     give up.
     """
-    print(worker + ': ' + str(s3_max_retries) + ' S3 upload attempts failed for ' + filename)
-    print(worker + ': Killing DDBExport due to retry limits exceeded.')
+    message(worker + ': ' + str(s3_max_retries) + ' S3 upload attempts failed for ' + filename)
+    message(worker + ': Killing DDBExport due to retry limits exceeded.')
     sys.exit()
+
+"""
+Retrieve the AWS region for the S3 bucket.
+"""
+def getBucketRegion(bucket):
+  client = boto3.client('s3')
+  try:
+    location = client.get_bucket_location(Bucket=bucket)
+    if location['LocationConstraint']:
+      return location['LocationConstraint']
+    else:
+      return 'us-east-1'
+  except Exception as e:
+    message(bucket + '\t' + str(e))
+    return 'us-east-1'
+    
+"""
+Get the string representation of the current day and time.
+"""   
+def getTime():
+  now = datetime.now()
+  current_time = now.strftime("%Y-%m-%dT%H:%M:%S")
+  return current_time
+  
+
+"""
+Print out message with the current day and time.
+"""   
+def message(msg):
+  print(getTime() + ' ' + msg)
+
 
 """
 Each ddbExportWorker is a sub-process to Scan and export one of the segments. 
 The QoSCounter is used for QoS control.
 """   
-def ddbExportWorker(workerId, region, table, total_segments, counter, destination, size, isS3, s3Bucket, s3Prefix):
+def ddbExportWorker(workerId, region, table, total_segments, counter, destination, size, isS3, s3Region, s3Bucket, s3Prefix):
   worker = "Worker_" + "{:04d}".format(workerId)
   """
   We start with a random sleep. This is to avoid all sub-processes performing disk 
@@ -168,7 +200,7 @@ def ddbExportWorker(workerId, region, table, total_segments, counter, destinatio
   dynamodb    = session.resource('dynamodb', region_name = region)
   ddb_table   = dynamodb.Table(table)
   if isS3:
-    s3 = session.resource('s3', region_name = region)
+    s3 = session.resource('s3', region_name = s3Region)
   """
   Output filename is table-workerId-fileId.json.
   """
@@ -240,6 +272,7 @@ rcu    = None
 size   = 1024
 destination  = None
 isS3   = False
+s3Region = 'us-east-1'
 s3Bucket = None
 s3Prefix = None
 """
@@ -269,6 +302,7 @@ for opt, arg in opts:
       else:
         s3Bucket = destination
         s3Prefix = None
+      s3Region = getBucketRegion(s3Bucket)
     else:
       if not destination.endswith('/'):
         destination = destination + '/'
@@ -294,19 +328,19 @@ else:
     session = boto3.session.Session()
     client  = session.resource('dynamodb', region_name = region)
     response = client.Table(table)
-    print('The DynamoDB table is ' + response.table_status + '.')
+    message('The DynamoDB table is ' + response.table_status + '.')
     if response.table_status != 'ACTIVE':
-      print('The DynamoDB table must be in ACTIVE state to run DDBExport.')
+      message('The DynamoDB table must be in ACTIVE state to run DDBExport.')
       sys.exit()
     if response.billing_mode_summary is None:
-      print('The DynamoDB table has provisioned RCU: ' + str(response.provisioned_throughput['ReadCapacityUnits']))
+      message('The DynamoDB table has provisioned RCU: ' + str(response.provisioned_throughput['ReadCapacityUnits']))
       if response.provisioned_throughput['ReadCapacityUnits'] < rcu:
-        print('The provisioned RCU is smaller than the desired capacity (' + str(rcu) + ') for DDBExport.')
+        message('The provisioned RCU is smaller than the desired capacity (' + str(rcu) + ') for DDBExport.')
         sys.exit()
     else:
-      print('The DynamoDB table is using on-demand capacity.')
+      message('The DynamoDB table is using on-demand capacity.')
   except Exception as e:
-    print(str(e))
+    message(str(e))
     sys.exit()
   """
   Setup the QoSCounter. 
@@ -319,7 +353,7 @@ else:
   """
   workers = []
   for i in range(process_count):
-    p = multiprocessing.Process(target=ddbExportWorker, args=(i, region, table, process_count, counter, destination, size, isS3, s3Bucket, s3Prefix))
+    p = multiprocessing.Process(target=ddbExportWorker, args=(i, region, table, process_count, counter, destination, size, isS3, s3Region, s3Bucket, s3Prefix))
     workers.append(p)
     p.start()
   """
@@ -328,4 +362,4 @@ else:
   for p in workers:
     p.join()
   qos.terminate()
-  print("All done.")
+  message("All done.")
