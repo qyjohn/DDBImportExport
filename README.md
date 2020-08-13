@@ -92,10 +92,10 @@ python DDBImport.py -r <region> -t <table> -s <source> -p <processes> -c <capaci
 Example:
 
 ~~~~
-python DDBImport.py -r us-east-1 -t TestTable -s /home/ec2-user/test.json -p 8 -c 1000
-python DDBImport.py -r us-east-1 -t TestTable -s /home/ec2-user/data/ -p 8 -c 2000
-python DDBImport.py -r us-east-1 -t TestTable -s s3://bucket-name/prefix/test.json -p 8 -c 1000
-python DDBImport.py -r us-east-1 -t TestTable -s s3://buckeet-name/data/ -p 8 -c 2000
+python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 1000 -s /home/ec2-user/test.json
+python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 2000 -s /home/ec2-user/data/ 
+python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 1000 -s s3://bucket-name/prefix/test.json 
+python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 2000 -s s3://buckeet-name/data/ 
 ~~~~
   
 The script launches multiple processes to do the work. The processes poll from a common queue for data to write. When the queue is empty, the processes continues to poll the queue for another 60 seconds to make sure it does not miss anything. 
