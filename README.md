@@ -13,7 +13,6 @@ source boto3/bin/activate
 pip install pip --upgrade
 pip install boto3
 git clone https://github.com/qyjohn/DDBImportExport
-cd DDBImportExport
 ~~~~
 
 On a newly launched EC2 instance with Ubuntu 18.04, install DDBImportExport with the following commands:
@@ -26,7 +25,6 @@ source boto3/bin/activate
 pip install pip --upgrade
 pip install boto3
 git clone https://github.com/qyjohn/DDBImportExport
-cd DDBImportExport
 ~~~~
 
 You need the following IAM permissions to use this DDBImportExport:
@@ -34,9 +32,44 @@ You need the following IAM permissions to use this DDBImportExport:
 - dynamodb:DescribeTable
 - dynamodb:Scan
 - dynamodb:BatchWriteItem
+- s3:GetBucketLocation
+- s3:ListBucket
 - s3:ListObjects
 - s3:GetObject
 - s3:PutObject
+
+Below is an example that works:
+
+~~~~
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:ListObjects",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::bucket-name",
+                "arn:aws:s3:::bucket-name/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:DescribeTable",
+                "dynamodb:Scan",
+                "dynamodb:BatchWriteItem"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+~~~~
 
 ## DDBImport
 
