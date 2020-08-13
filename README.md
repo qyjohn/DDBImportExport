@@ -98,13 +98,13 @@ python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 1000 -s s3://bucket-name/p
 python DDBImport.py -r us-east-1 -t TestTable -p 8 -c 2000 -s s3://buckeet-name/data/ 
 ~~~~
   
-The script launches multiple processes to do the work. The processes poll from a common queue for data to write. When the queue is empty, the processes continues to poll the queue for another 60 seconds to make sure it does not miss anything. 
+The script launches multiple processes to do the work. The processes poll from a common queue for data to write. When the input source contains only a single file (or S3 object), the queue contains the file content. When the input source contains more than a single file (or S3 objects), the queue contains the file names (or S3 object names). Obviously, the number of processes needs to be smaller than the number of files or S3 objects.
 
-It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. The BatchWriteItem API is used to perform the import. Depending on the size of the items, each process can consume approximately 1000 WCU during the import. 
+It is recommended that you use either a fixed provisioned WCU or an on-demand table for the import. The import creates a short burst traffic, which is not friendly for the DynamoDB auto scaling feature. The BatchWriteItem API is used to perform the import. Assuming that each item is less than 1 KB, then each item consumes 1 WCU. When you have bigger items, the consumed WCU can be higher.
+
+It is safe to use 1 process per vCPU core. If you have an EC2 instance with 4 vCPU cores, it is OK to set the process count to 4. Each process can handle approximately 1000 items in a second. The consumed WCU depends on the size of the items. Assuming that each item is less than 1 KB, then each process requires approximately 1000 WCU. If you use 8 processes to do the import, you need 8000 provisioned WCU on the table. When you have bigger items, the consumed WCU can be higher for each process. 
 
 Tested on an EC2 instance with the c3.8xlarge instance type. The data set contains 10,000,000 items, with each item being approximately 170 bytes. The size of the JSON file is 1.7 GB. The DynamoDB table has 40,000 provisioned WCU. Perform the import with 32 threads, and the import is completed in 7 minutes. The peak consumed WCU is approximately 32,000 (average value over a 1-minute period).
-
-It is recommended that you use either a fixed provisioned WCU or an on-demand table for the import. The import creates a short burst traffic, which is not friendly for the DynamoDB auto scaling feature. If you use provisioned capacity, remember that each process can handle approximately 1000 items in a second. Assuming that each item is less than 1 KB, then eachi process requires approximately 1000 WCU. If you use 8 processes to do the import, you need 8000 provisioned WCU on the table. When you have bigger items, the consumed WCU can be higher for each process. 
 
 ## DDBExport
 
