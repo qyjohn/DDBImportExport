@@ -98,7 +98,7 @@ def writeItem(batch, line, counter):
 Each ddbImportWorker is a sub-process to read data and write to DynamoDB. 
 The QoSCounter is used for QoS control.
 """        
-def ddbImportWorker(workerId, region, table, queue, queue_type, counter):
+def ddbImportWorker(workerId, region, table, queue, queue_type, counter, s3Bucket):
   worker = "Worker_" + "{:04d}".format(workerId)
   """
   We create one DynamoDB client per worker process. This is because boto3 session 
@@ -108,6 +108,23 @@ def ddbImportWorker(workerId, region, table, queue, queue_type, counter):
   dynamodb = session.resource('dynamodb', region_name = region)
   ddb_table   = dynamodb.Table(table)
   with ddb_table.batch_writer() as batch:
+    if queue_type == 'S3Object':
+      """
+      When the source_type is S3Object, each record in the queue is an S3 object.
+      """
+      s3 = boto3.resource('s3', region_name = region)
+      has_more_work = True
+      while has_more_work:
+        try:
+          key = queue.get(timeout=2)
+          print(worker + ' is importing s3://' + s3Bucket + '/' + key)
+          obj = s3.Object(s3Bucket, key)
+          for line in obj.get()['Body']._raw_stream:
+            writeItem(batch, line, counter)
+        except Exception as e:
+          print(str(e))
+          has_more_work = False  
+          sys.exit()
     if queue_type == 'FILE':
       """
       When the source_type is FILE, each record in the queue is a filename.
@@ -187,6 +204,7 @@ table  = None
 source = None
 wcu    = None
 process_count = None
+s3Bucket = None
 """
 Obtain the AWS region, table name, source file, and the number of worker processes
 from command line.
@@ -259,6 +277,10 @@ else:
       There is only one S3 object with .json filename, need to write to the queue line by line
       """
       queue_type = 'LINE'
+      s3 = boto3.resource('s3', region_name = region)
+      obj = s3.Object(s3Bucket, objects[0])
+      for line in obj.get()['Body']._raw_stream:
+        queue.put(line)
     else:
       """
       There are multiple S3 object with .json filename, need to write object key names to the queue
@@ -304,7 +326,7 @@ else:
   """
   workers = []
   for i in range(process_count):
-    p = multiprocessing.Process(target=ddbImportWorker, args=(i, region, table, queue, queue_type, counter))
+    p = multiprocessing.Process(target=ddbImportWorker, args=(i, region, table, queue, queue_type, counter, s3Bucket))
     workers.append(p)
     p.start()
   """

@@ -46,7 +46,7 @@ DDBImport is a python script to import from JSON file into DynamoDB table. The f
 |---|---|
 | -r | The name of the AWS region, such as us-east-1. |
 | -t | The name of the DynamoDB table. |
-| -s | The name of the source file / folder. |
+| -s | The input source. Supports local file, local folder, S3 object and S3 prefix.  |
 | -p | The number of sub-processes (threads) to use. |
 | -c | The maximum amount of write capacity units (WCU) to use. |
 
@@ -59,8 +59,10 @@ python DDBImport.py -r <region> -t <table> -s <source> -p <processes> -c <capaci
 Example:
 
 ~~~~
-python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8 -c 1000
-python DDBImport.py -r us-east-1 -t TestTable -s data/ -p 8 -c 1000
+python DDBImport.py -r us-east-1 -t TestTable -s /home/ec2-user/test.json -p 8 -c 1000
+python DDBImport.py -r us-east-1 -t TestTable -s /home/ec2-user/data/ -p 8 -c 2000
+python DDBImport.py -r us-east-1 -t TestTable -s s3://bucket-name/prefix/test.json -p 8 -c 1000
+python DDBImport.py -r us-east-1 -t TestTable -s s3://buckeet-name/data/ -p 8 -c 2000
 ~~~~
   
 The script launches multiple processes to do the work. The processes poll from a common queue for data to write. When the queue is empty, the processes continues to poll the queue for another 60 seconds to make sure it does not miss anything. 
