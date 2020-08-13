@@ -27,7 +27,7 @@ pip install boto3
 git clone https://github.com/qyjohn/DDBImportExport
 ~~~~
 
-You need the following IAM permissions to use this DDBImportExport:
+You need the following IAM permissions to use DDBImportExport:
 
 - dynamodb:DescribeTable
 - dynamodb:Scan
