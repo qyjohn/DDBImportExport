@@ -167,6 +167,38 @@ python GenerateTestData.py -c 1000000 -f test.json
 python DDBImport.py -r us-east-1 -t TestTable -s test.json -p 8
 ~~~~
 
+
+## Performance and Cost Considerations for DDBImport
+
+
+If the data to be imported is large, it is recommended that the data be split into multiple JSON files (in a folder) instead of a single JSON file. This avoids fitting all the data into memory at once. This can be done with the **split** command in Linux. Below is an example on how to achieve this.
+
+~~~~
+$ ls -l *.json
+-rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
+
+$ more test.json | wc -l
+1000000
+
+$ split -dl 100000 --additional-suffix=.json test.json test                                                                  
+
+$ ls -l *.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748382 Aug 12 09:21 test00.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748294 Aug 12 09:21 test01.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748330 Aug 12 09:21 test02.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748069 Aug 12 09:21 test03.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748405 Aug 12 09:21 test04.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748386 Aug 12 09:21 test05.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748401 Aug 12 09:21 test06.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748051 Aug 12 09:21 test07.json
+-rw-rw-r-- 1 ec2-user ec2-user  16748289 Aug 12 09:21 test08.json
+-rw-rw-r-- 1 ec2-user ec2-user  16747952 Aug 12 09:21 test09.json
+-rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
+
+$ rm test.json
+~~~~
+
+
 ## Performance and Cost Considerations for DDBExport
 
 When exporting a DynamoDB table at TB scale, you might want to run DDBExport on an EC2 instance with both good network performance and good disk I/O capacity. The I3 instance family becomes a great choice for such use case. The following test results are done with a DynamoDB table with 6.5 TB data. There are over 37 million items in the table, with each item being around 200 KB. The EC2 instances are i3.8xlarge, i3.16xlarge and i3en.24xlarge with Amazon Linux 2. A RAID0 device is created with all the instance-store volumes to provide the best disk I/O capacity. 
@@ -250,35 +282,6 @@ Comparing test 8 with test 10, DDBExport achieves some slight speed-up (5%) with
 
 DDBExport has been tested with a DynamoDB table with 48 TB data (with 266 million items). We run DDBExport on i3en.24xlarge with 96 sub-processes. The provisioned RCU on the DynamoDB is 192000. The export is completed in 532 minutes. 
 
-## Performance and Cost Considerations for DDBImport
-
-
-If the data to be imported is large, it is recommended that the data be split into multiple JSON files (in a folder) instead of a single JSON file. This avoids fitting all the data into memory at once. This can be done with the **split** command in Linux. Below is an example on how to achieve this.
-
-~~~~
-$ ls -l *.json
--rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
-
-$ more test.json | wc -l
-1000000
-
-$ split -dl 100000 --additional-suffix=.json test.json test                                                                  
-
-$ ls -l *.json
--rw-rw-r-- 1 ec2-user ec2-user  16748382 Aug 12 09:21 test00.json
--rw-rw-r-- 1 ec2-user ec2-user  16748294 Aug 12 09:21 test01.json
--rw-rw-r-- 1 ec2-user ec2-user  16748330 Aug 12 09:21 test02.json
--rw-rw-r-- 1 ec2-user ec2-user  16748069 Aug 12 09:21 test03.json
--rw-rw-r-- 1 ec2-user ec2-user  16748405 Aug 12 09:21 test04.json
--rw-rw-r-- 1 ec2-user ec2-user  16748386 Aug 12 09:21 test05.json
--rw-rw-r-- 1 ec2-user ec2-user  16748401 Aug 12 09:21 test06.json
--rw-rw-r-- 1 ec2-user ec2-user  16748051 Aug 12 09:21 test07.json
--rw-rw-r-- 1 ec2-user ec2-user  16748289 Aug 12 09:21 test08.json
--rw-rw-r-- 1 ec2-user ec2-user  16747952 Aug 12 09:21 test09.json
--rw-rw-r-- 1 ec2-user ec2-user 167482559 Aug 12 09:19 test.json
-
-$ rm test.json
-~~~~
 
 ## Additional Notes
 
