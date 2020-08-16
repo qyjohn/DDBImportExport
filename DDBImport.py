@@ -303,6 +303,7 @@ else:
     s3Prefix = source[pos+1:]
     s3Region = getBucketRegion(s3Bucket)
     objects = listS3Objects(s3Region, s3Bucket, s3Prefix)
+    message('Total input files: ' + str(len(objects)))
     if len(objects) == 0:
       """
       There is no S3 object with .json filename
@@ -330,6 +331,7 @@ else:
     Retrieve all JSON files in the source location
     """
     files = listLocalFiles(source)
+    message('Total input files: ' + str(len(files)))
     if len(files) == 0:
       """
       There is no .json file in the source location
