@@ -30,6 +30,7 @@ import json
 import time
 import boto3
 import math
+import random
 import multiprocessing
 import getopt
 from glob import glob
@@ -80,7 +81,7 @@ def qosRefillThread(counter):
 """
 Write one item.
 """
-def writeItem(batch, line, counter):
+def writeItem(items, line, counter):
   """
   Before doing any work, wait for QoSCounter to be greater than zero. 
   """
@@ -88,7 +89,7 @@ def writeItem(batch, line, counter):
     time.sleep(1)
   size = len(line)
   item = json.loads(line)
-  batch.put_item(Item=item)
+  items.append(item)
   """
   Consume (size/1024) WCU from the counter. This is only an estimation.
   """
@@ -108,6 +109,42 @@ Print out message with the current day and time.
 def message(msg):
   print(getTime() + ' ' + msg)
 
+
+"""
+Perform a DynamoDB BatchWriteItem, with application -level retries. The application-level retries are
+in addition to the automatic retries in boto3.
+"""
+def ddbWrite(worker, ddb_table, items):
+  ddb_max_retries  = 3
+  ddb_retry_count  = 0
+  ddb_retry_needed = True
+  """
+  Before doing any work, wait for QoSCounter to be greater than zero. 
+  """
+  while counter.value() <= 0:
+    time.sleep(1)
+  """
+  The QoSCounter is greater than 0. Perform the Scan 
+  """
+  while ddb_retry_count < ddb_max_retries and ddb_retry_needed:
+    try:
+      with ddb_table.batch_writer() as batch:
+        for item in items:
+          batch.put_item(Item=item)
+    except Exception as e:
+      ddb_retry_count = ddb_retry_count + 1
+      message(worker + ': ' + str(e))
+      time.sleep(ddb_retry_count * random.randrange(10))
+  if ddb_retry_count >= ddb_max_retries and ddb_retry_needed:
+    """
+    If the application-level retries also fail, we have tried our best. It is time to
+    give up.
+    """
+    message(worker + ': ' + str(ddb_max_retries) + ' DynamoDB Scan attempts failed.')
+    message(worker + ': Killing DDBExport due to retry limits exceeded.')
+    sys.exit()
+    
+    
 """
 Each ddbImportWorker is a sub-process to read data and write to DynamoDB. 
 The QoSCounter is used for QoS control.
@@ -121,59 +158,68 @@ def ddbImportWorker(workerId, ddbRegion, table, queue, queue_type, counter, s3Re
   session  = boto3.session.Session()
   dynamodb = session.resource('dynamodb', region_name = ddbRegion)
   ddb_table   = dynamodb.Table(table)
-  with ddb_table.batch_writer() as batch:
-    if queue_type == 'S3Object':
-      """
-      When the source_type is S3Object, each record in the queue is an S3 object.
-      """
-      s3 = boto3.resource('s3', region_name = s3Region)
-      has_more_work = True
-      while has_more_work:
-        try:
-          key = queue.get(timeout=1)
-          message(worker + ' is importing s3://' + s3Bucket + '/' + key)
-          obj = s3.Object(s3Bucket, key)
-          for line in obj.get()['Body']._raw_stream:
-            writeItem(batch, line, counter)
-        except Exception as e:
-          message(worker + ' ' + type(e).__name__)
-          if type(e).__name__ is not 'Empty':
-            message(worker + ' ' + str(e))
-          has_more_work = False  
-          sys.exit()
-    if queue_type == 'FILE':
-      """
-      When the source_type is FILE, each record in the queue is a filename.
-      """
-      has_more_work = True
-      while has_more_work:
-        try:
-          file = queue.get(timeout=1)
-          message(worker + ' is importing ' + file)
-          with open(file) as f:
-            for line in f:
-              writeItem(batch, line, counter)
-        except Exception as e:
-          message(worker + ' ' + type(e).__name__)
-          if type(e).__name__ is not 'Empty':
-            message(worker + ' ' + str(e))
-          has_more_work = False  
-          sys.exit()
-    elif queue_type == 'LINE':
-      """
-      When the queue_type is LINE, each record in the queue is an item.
-      """
-      has_more_work = True
-      while has_more_work:
-        try:
-          line = queue.get(timeout=2)
-          writeItem(batch, line, counter)
-        except Exception as e:
-          message(worker + ' ' + type(e).__name__)
-          if type(e).__name__ is not 'Empty':
-            message(worker + ' ' + str(e))
-          has_more_work = False  
-          sys.exit()
+  items = []
+  if queue_type == 'S3Object':
+    """
+    When the source_type is S3Object, each record in the queue is an S3 object.
+    """
+    s3 = boto3.resource('s3', region_name = s3Region)
+    has_more_work = True
+    while has_more_work:
+      try:
+        key = queue.get(timeout=1)
+        message(worker + ' is importing s3://' + s3Bucket + '/' + key)
+        obj = s3.Object(s3Bucket, key)
+        for line in obj.get()['Body']._raw_stream:
+          writeItem(items, line, counter)
+          if (len(items) == 25):
+            ddbWrite(worker, ddb_table, items)
+            items = []
+      except Exception as e:
+        message(worker + ' ' + type(e).__name__)
+        if type(e).__name__ is not 'Empty':
+          message(worker + ' ' + str(e))
+        has_more_work = False  
+        sys.exit()
+  if queue_type == 'FILE':
+    """
+    When the source_type is FILE, each record in the queue is a filename.
+    """
+    has_more_work = True
+    while has_more_work:
+      try:
+        file = queue.get(timeout=1)
+        message(worker + ' is importing ' + file)
+        with open(file) as f:
+          for line in f:
+            writeItem(items, line, counter)
+            if (len(items) == 25):
+              ddbWrite(worker, ddb_table, items)
+              items = []
+      except Exception as e:
+        message(worker + ' ' + type(e).__name__)
+        if type(e).__name__ is not 'Empty':
+          message(worker + ' ' + str(e))
+        has_more_work = False  
+        sys.exit()
+  elif queue_type == 'LINE':
+    """
+    When the queue_type is LINE, each record in the queue is an item.
+    """
+    has_more_work = True
+    while has_more_work:
+      try:
+        line = queue.get(timeout=2)
+        writeItem(items, line, counter)
+        if (len(items) == 25):
+          ddbWrite(worker, ddb_table, items)
+          items = []
+      except Exception as e:
+        message(worker + ' ' + type(e).__name__)
+        if type(e).__name__ is not 'Empty':
+          message(worker + ' ' + str(e))
+        has_more_work = False  
+        sys.exit()
 
 """
 Retrieve the AWS region for the S3 bucket.
