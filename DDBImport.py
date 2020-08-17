@@ -141,7 +141,7 @@ def ddbWrite(worker, ddb_table, items):
     give up.
     """
     message(worker + ': ' + str(ddb_max_retries) + ' DynamoDB Scan attempts failed.')
-    message(worker + ': Killing DDBExport due to retry limits exceeded.')
+    message(worker + ': Killing DDBimport due to retry limits exceeded.')
     sys.exit()
     
     
@@ -257,6 +257,11 @@ def listS3Objects(s3Region, s3Bucket, s3Prefix):
         for item in response['Contents']:
           if item['Key'].endswith('json'):
             results.append(item['Key'])
+    """
+    Shuffle the list to avoid hot partitions
+    """
+    if len(results) > 1:
+      random.shuffle(results)
   except Exception as e:
     message(str(e))
     sys.exit()
@@ -274,6 +279,10 @@ def listLocalFiles(source):
         files.append(source)
     elif os.path.isdir(source):
       files = [y for x in os.walk(os.path.abspath(source)) for y in glob(os.path.join(x[0], '*.json'))]
+      """
+      Shuffle the list to avoid hot partitions
+      """
+      random.shuffle(files)
   return files  
   
   
