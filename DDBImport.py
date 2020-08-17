@@ -111,10 +111,10 @@ def message(msg):
 
 
 """
-Perform a DynamoDB BatchWriteItem, with application -level retries. The application-level retries are
+Perform a DynamoDB PutItem, with application -level retries. The application-level retries are
 in addition to the automatic retries in boto3.
 """
-def ddbWrite(worker, ddb_table, items):
+def ddbWrite(worker, counter, ddb_table, line):
   ddb_max_retries  = 3
   ddb_retry_count  = 0
   ddb_retry_needed = True
@@ -124,13 +124,23 @@ def ddbWrite(worker, ddb_table, items):
   while counter.value() <= 0:
     time.sleep(1)
   """
+  Convert the line into a DynamoDB item, also take the size 
+  """
+  size = len(line)
+  item = json.loads(line)
+  """
   The QoSCounter is greater than 0. Perform the Scan 
   """
   while ddb_retry_count < ddb_max_retries and ddb_retry_needed:
     try:
-      with ddb_table.batch_writer() as batch:
-        for item in items:
-          batch.put_item(Item=item)
+      """
+      DynamoDB PutItem
+      """
+      ddb_table.put_item(Item=item)
+      """
+      Consume (size/1024) WCU from the counter. This is only an estimation.
+      """
+      counter.consume(math.ceil(size/1024))
     except Exception as e:
       ddb_retry_count = ddb_retry_count + 1
       message(worker + ': ' + str(e))
@@ -171,10 +181,7 @@ def ddbImportWorker(workerId, ddbRegion, table, queue, queue_type, counter, s3Re
         message(worker + ' is importing s3://' + s3Bucket + '/' + key)
         obj = s3.Object(s3Bucket, key)
         for line in obj.get()['Body']._raw_stream:
-          writeItem(items, line, counter)
-          if (len(items) == 25):
-            ddbWrite(worker, ddb_table, items)
-            items = []
+            ddbWrite(worker, counter, ddb_table, line)
       except Exception as e:
         message(worker + ' ' + type(e).__name__)
         if type(e).__name__ is not 'Empty':
@@ -192,10 +199,7 @@ def ddbImportWorker(workerId, ddbRegion, table, queue, queue_type, counter, s3Re
         message(worker + ' is importing ' + file)
         with open(file) as f:
           for line in f:
-            writeItem(items, line, counter)
-            if (len(items) == 25):
-              ddbWrite(worker, ddb_table, items)
-              items = []
+            ddbWrite(worker, counter, ddb_table, line)
       except Exception as e:
         message(worker + ' ' + type(e).__name__)
         if type(e).__name__ is not 'Empty':
@@ -210,10 +214,7 @@ def ddbImportWorker(workerId, ddbRegion, table, queue, queue_type, counter, s3Re
     while has_more_work:
       try:
         line = queue.get(timeout=2)
-        writeItem(items, line, counter)
-        if (len(items) == 25):
-          ddbWrite(worker, ddb_table, items)
-          items = []
+        ddbWrite(worker, counter, ddb_table, line)
       except Exception as e:
         message(worker + ' ' + type(e).__name__)
         if type(e).__name__ is not 'Empty':
