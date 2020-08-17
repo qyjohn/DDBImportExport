@@ -118,7 +118,7 @@ Perform a DynamoDB PutItem, with application -level retries. The application-lev
 in addition to the automatic retries in boto3.
 """
 def ddbWrite(worker, counter, ddb_table, line):
-  ddb_max_retries  = 3
+  ddb_max_retries  = 10
   ddb_retry_count  = 0
   ddb_retry_needed = True
   """
@@ -147,14 +147,17 @@ def ddbWrite(worker, counter, ddb_table, line):
     except Exception as e:
       ddb_retry_count = ddb_retry_count + 1
       message(worker + ': ' + str(e))
-      time.sleep(ddb_retry_count * random.randrange(10))
+      """
+      Very aggressive sleep for 5, 10, 15, 20, 25... seconds to deal with throttling
+      """
+      time.sleep(ddb_retry_count * 5)
   if ddb_retry_count >= ddb_max_retries and ddb_retry_needed:
     """
     If the application-level retries also fail, we have tried our best. It is time to
     give up.
     """
-    message(worker + ': ' + str(ddb_max_retries) + ' DynamoDB Scan attempts failed.')
-    message(worker + ': Killing DDBimport due to retry limits exceeded.')
+    message(worker + ': ' + str(ddb_max_retries) + ' DynamoDB PutItem attempts failed.')
+    message(worker + ': Killing DDBImport due to retry limits exceeded.')
     sys.exit()
     
     
