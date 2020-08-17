@@ -58,12 +58,15 @@ class QoSCounter(object):
 
     def refill(self):
         """
-        Here we assume unlimit capacity for the LeakyBucket. The underlying assumption
-        is unused capacity in the previous second is counted towards burst capacity,
-        which can be used in subsequent API calls. 
+        Here we assume limit capacity for the LeakyBucket. The underlying assumption
+        is unused capacity in the previous second can't be counted towards burst capacity.
+        This is because unused capacity is usually the result of throttling from the
+        service side.
         """ 
         with self.lock:
             self.capacity.value += self.refillRate.value
+            if self.capacity.value > self.refillRate.value:
+              self.capacity.value = self.refillRate.value
 
     def value(self):
         with self.lock:

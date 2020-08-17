@@ -63,7 +63,9 @@ Below is an example that works:
             "Action": [
                 "dynamodb:DescribeTable",
                 "dynamodb:Scan",
-                "dynamodb:BatchWriteItem"
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:GetItem"
             ],
             "Resource": "*"
         }
