@@ -144,6 +144,7 @@ def ddbWrite(worker, counter, ddb_table, line):
       Consume (size/1024) WCU from the counter. This is only an estimation.
       """
       counter.consume(math.ceil(size/1024))
+      ddb_retry_needed = False
     except Exception as e:
       ddb_retry_count = ddb_retry_count + 1
       message(worker + ': ' + str(e))
