@@ -35,6 +35,7 @@ import multiprocessing
 import getopt
 from glob import glob
 from datetime import datetime
+from decimal import Decimal
 
 """
 QoSCounter is a LeakyBucket QoS algorithm. Each sub-process can not do any Scan 
@@ -91,7 +92,7 @@ def writeItem(items, line, counter):
   while counter.value() <= 0:
     time.sleep(1)
   size = len(line)
-  item = json.loads(line)
+  item = json.loads(line, parse_float=Decimal)
   items.append(item)
   """
   Consume (size/1024) WCU from the counter. This is only an estimation.
@@ -130,7 +131,7 @@ def ddbWrite(worker, counter, ddb_table, line):
   Convert the line into a DynamoDB item, also take the size 
   """
   size = len(line)
-  item = json.loads(line)
+  item = json.loads(line, parse_float=Decimal)
   """
   The QoSCounter is greater than 0. Perform the Scan 
   """
